@@ -19,27 +19,41 @@ class OrderService {
     String? customerName,
     String? note,
   }) async {
+    print('🔵 Creating order...');
+    print('   Restaurant ID: $restaurantId');
+    print('   Table ID: $tableNumber');
+    print('   Items count: ${cartItems.length}');
+    
+    final requestBody = {
+      'restaurantId': restaurantId,
+      'tableId': tableNumber,
+      'type': type,
+      if (customerName != null && customerName.isNotEmpty) 'customerName': customerName,
+      if (note != null && note.isNotEmpty) 'note': note,
+      'items': cartItems.map((item) => {
+        'menuItemId': item.product.id,
+        'quantity': item.quantity,
+        if (item.hasNote && item.specialInstructions.isNotEmpty) 'notes': item.specialInstructions,
+      }).toList()
+    };
+    
+    print('📤 Request body: ${jsonEncode(requestBody)}');
+    
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/orders'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'restaurantId': restaurantId,
-        'tableId': tableNumber,
-        'type': type,
-        'customerName': customerName,
-        'note': note,
-        'items': cartItems.map((item) => {
-          'menuItemId': item.product.id,
-          'quantity': item.quantity,
-          if (item.hasNote) 'notes': item.specialInstructions,
-        }).toList()
-      }),
+      body: jsonEncode(requestBody),
     );
+
+    print('📥 Response status: ${response.statusCode}');
+    print('📥 Response body: ${response.body}');
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       final json = jsonDecode(response.body);
+      print('✅ Order created successfully');
       return Order.fromJson(json);
     } else {
+      print('❌ Error creating order: ${response.body}');
       throw Exception('Erreur lors de la création de commande: ${response.body}');
     }
   }
