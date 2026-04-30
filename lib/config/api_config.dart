@@ -4,12 +4,20 @@ class ApiConfig {
   // Version de l'API
   static const String apiVersion = '/api/v1';
   
+  // URL du backend Railway (production)
+  static const String productionUrl = 'https://qr-code-server-production.up.railway.app';
+  
+  // Mode de développement : true pour utiliser localhost, false pour Railway
+  static const bool useLocalServer = false;
+  
   // URL de base selon l'environnement
-  // En mode web (ou navigateur), on utilise localhost
-  // En mode émulateur Android, c'est 10.0.2.2
-  // Remplacez cette IP par l'adresse réseau de votre machine 
-  // si vous testez sur un vrai téléphone connecté au même WiFi (ex: 'http://192.168.1.15:3000')
   static String get baseUrl {
+    // Si on utilise le serveur de production Railway
+    if (!useLocalServer) {
+      return '$productionUrl$apiVersion';
+    }
+    
+    // Sinon, utiliser localhost/émulateur pour le développement
     if (kIsWeb) {
       return 'http://localhost:3000$apiVersion';
     } else if (kDebugMode) {
@@ -24,6 +32,12 @@ class ApiConfig {
 
   // URL WebSocket (sans le préfixe /api/v1)
   static String get socketUrl {
+    // Si on utilise le serveur de production Railway
+    if (!useLocalServer) {
+      return productionUrl;
+    }
+    
+    // Sinon, utiliser localhost/émulateur pour le développement
     if (kIsWeb) {
       return 'http://localhost:3000';
     } else if (kDebugMode) {
