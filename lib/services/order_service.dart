@@ -33,7 +33,8 @@ class OrderService {
       'items': cartItems.map((item) => {
         'menuItemId': item.product.id,
         'quantity': item.quantity,
-        if (item.hasNote && item.specialInstructions.isNotEmpty) 'notes': item.specialInstructions,
+        if (item.hasNote && item.specialInstructions != null && item.specialInstructions!.isNotEmpty) 
+          'notes': item.specialInstructions,
       }).toList()
     };
     
