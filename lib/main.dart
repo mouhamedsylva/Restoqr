@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Pour kDebugMode
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+// ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
 import 'providers/cart_provider.dart';

@@ -6,8 +6,8 @@ import 'dart:html' as html;
 import 'dart:js' as js;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:ui' as ui;
+// ignore: avoid_web_libraries_in_flutter, undefined_prefixed_name
+import 'dart:ui_web' as ui_web;
 
 const _amber = Color(0xFFC8901A);
 const _amberLight = Color(0xFFE8A83A);
@@ -49,7 +49,7 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
   void _initializeStripeElement() {
     // Enregistrer la vue pour le Payment Element
     // ignore: undefined_prefixed_name
-    ui.platformViewRegistry.registerViewFactory(
+    ui_web.platformViewRegistry.registerViewFactory(
       _viewId,
       (int viewId) {
         final container = html.DivElement()
