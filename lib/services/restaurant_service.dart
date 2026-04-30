@@ -55,14 +55,22 @@ class RestaurantService {
   Future<Map<String, dynamic>> getRestaurantInfo(String restaurantId) async {
     if (_cachedInfo != null) return _cachedInfo!;
 
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/restaurants/$restaurantId'),
-    );
+    try {
+      // Essayer d'abord l'endpoint basic (plus simple, moins de risque d'erreur)
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/restaurants/$restaurantId/basic'),
+      );
 
-    if (response.statusCode == 200) {
-      _cachedInfo = jsonDecode(response.body);
-      return _cachedInfo!;
-    } else {
+      if (response.statusCode == 200) {
+        _cachedInfo = jsonDecode(response.body);
+        debugPrint('✅ Restaurant info loaded (basic): ${_cachedInfo!['name']}');
+        return _cachedInfo!;
+      } else {
+        debugPrint('❌ Error loading restaurant (basic): ${response.statusCode}');
+        throw Exception('Erreur de chargement du restaurant');
+      }
+    } catch (e) {
+      debugPrint('❌ Exception loading restaurant: $e');
       throw Exception('Erreur de chargement du restaurant');
     }
   }
