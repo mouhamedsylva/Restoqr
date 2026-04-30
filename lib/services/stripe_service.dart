@@ -1,23 +1,27 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+
+// Import conditionnel pour mobile
+import 'package:flutter_stripe/flutter_stripe.dart' if (dart.library.html) 'stripe_web_stub.dart';
 
 class StripeService {
   static bool _initialized = false;
 
   /// Initialise le SDK Stripe — à appeler une seule fois au démarrage
-  /// Stripe n'est disponible que sur mobile (iOS/Android)
+  /// Sur mobile: utilise flutter_stripe
+  /// Sur web: utilise Stripe.js via script HTML
   static Future<void> initialize() async {
     if (_initialized) return;
     
-    // Stripe n'est pas supporté sur le web, on initialise uniquement sur mobile
     if (!kIsWeb) {
+      // Mobile: Initialiser flutter_stripe
       Stripe.publishableKey = ApiConfig.stripePublishableKey;
       await Stripe.instance.applySettings();
     }
+    // Sur web, Stripe.js est chargé via index.html
     
     _initialized = true;
   }
@@ -29,11 +33,6 @@ class StripeService {
     required String restaurantId,
     required String orderId,
   }) async {
-    // Vérifier que nous sommes sur mobile
-    if (kIsWeb) {
-      throw UnsupportedError('Le paiement Stripe n\'est disponible que sur mobile');
-    }
-    
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/payments/intent'),
       headers: {'Content-Type': 'application/json'},
@@ -57,23 +56,37 @@ class StripeService {
     }
   }
 
-  /// Présente la feuille de paiement Stripe native et confirme le paiement
-  /// Disponible uniquement sur mobile (iOS/Android)
+  /// Présente la feuille de paiement Stripe
+  /// Sur mobile: utilise la PaymentSheet native
+  /// Sur web: redirige vers Stripe Checkout
   Future<PaymentResult> presentPaymentSheet({
     required String clientSecret,
     required String merchantDisplayName,
     String? customerEmail,
   }) async {
-    // Vérifier que nous sommes sur mobile
     if (kIsWeb) {
-      return PaymentResult(
-        success: false,
-        paymentIntentId: '',
-        status: 'failed',
-        errorMessage: 'Le paiement Stripe n\'est disponible que sur mobile',
+      // Sur web, on utilise Stripe.js avec Payment Element
+      return _presentWebPayment(
+        clientSecret: clientSecret,
+        merchantDisplayName: merchantDisplayName,
+        customerEmail: customerEmail,
+      );
+    } else {
+      // Sur mobile, on utilise la PaymentSheet native
+      return _presentMobilePayment(
+        clientSecret: clientSecret,
+        merchantDisplayName: merchantDisplayName,
+        customerEmail: customerEmail,
       );
     }
-    
+  }
+
+  /// Paiement mobile avec PaymentSheet native
+  Future<PaymentResult> _presentMobilePayment({
+    required String clientSecret,
+    required String merchantDisplayName,
+    String? customerEmail,
+  }) async {
     try {
       // 1. Initialiser la PaymentSheet
       await Stripe.instance.initPaymentSheet(
@@ -147,6 +160,32 @@ class StripeService {
       );
     }
   }
+
+  /// Paiement web avec Stripe.js
+  Future<PaymentResult> _presentWebPayment({
+    required String clientSecret,
+    required String merchantDisplayName,
+    String? customerEmail,
+  }) async {
+    try {
+      // Sur web, on retourne un résultat spécial qui indique qu'il faut
+      // afficher le formulaire de paiement web
+      return PaymentResult(
+        success: false,
+        paymentIntentId: clientSecret.split('_secret_').first,
+        status: 'requires_web_payment',
+        errorMessage: null,
+        clientSecret: clientSecret,
+      );
+    } catch (e) {
+      return PaymentResult(
+        success: false,
+        paymentIntentId: '',
+        status: 'failed',
+        errorMessage: e.toString(),
+      );
+    }
+  }
 }
 
 class PaymentResult {
@@ -154,11 +193,13 @@ class PaymentResult {
   final String paymentIntentId;
   final String status;
   final String? errorMessage;
+  final String? clientSecret; // Pour le paiement web
 
   const PaymentResult({
     required this.success,
     required this.paymentIntentId,
     required this.status,
     this.errorMessage,
+    this.clientSecret,
   });
 }

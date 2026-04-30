@@ -12,6 +12,9 @@ import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'order_status_screen.dart';
 
+// Import conditionnel pour le widget web
+import '../widgets/stripe_payment_web.dart' if (dart.library.io) '../widgets/stripe_payment_web_stub.dart';
+
 // ── Palette locale ────────────────────────────────────────────────────────────
 const _amber       = Color(0xFFC8901A);
 const _amberLight  = Color(0xFFE8A83A);
@@ -91,15 +94,6 @@ class _PaymentScreenState extends State<PaymentScreen>
   Future<void> _processPayment() async {
     if (_isProcessing) return;
     
-    // Vérifier si nous sommes sur le web
-    if (kIsWeb) {
-      AppFeedback.showInfo(
-        context,
-        'Le paiement est disponible uniquement sur l\'application mobile.',
-      );
-      return;
-    }
-    
     setState(() { _isProcessing = true; _errorMsg = null; });
     HapticFeedback.mediumImpact();
 
@@ -126,7 +120,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         orderId: order.id,
       );
 
-      // 3. Présenter la PaymentSheet Stripe native
+      // 3. Présenter le paiement (mobile ou web)
       final result = await stripeService.presentPaymentSheet(
         clientSecret: clientSecret,
         merchantDisplayName: 'QR Order',
@@ -134,6 +128,14 @@ class _PaymentScreenState extends State<PaymentScreen>
 
       if (!mounted) return;
 
+      // 4. Sur web, afficher le formulaire de paiement
+      if (kIsWeb && result.status == 'requires_web_payment') {
+        _showWebPaymentDialog(clientSecret, order.id);
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      // 5. Traiter le résultat (mobile)
       if (result.success) {
         HapticFeedback.heavyImpact();
         context.read<CartProvider>().clearCart();
@@ -156,6 +158,45 @@ class _PaymentScreenState extends State<PaymentScreen>
       setState(() { _isProcessing = false; _errorMsg = msg; });
       AppFeedback.showError(context, msg);
     }
+  }
+
+  void _showWebPaymentDialog(String clientSecret, String orderId) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: _bg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+          child: StripePaymentWeb(
+            clientSecret: clientSecret,
+            amount: widget.total,
+            onSuccess: () {
+              Navigator.pop(context); // Fermer le dialog
+              HapticFeedback.heavyImpact();
+              context.read<CartProvider>().clearCart();
+              setState(() { _showSuccess = true; });
+              _successCtrl.forward().then((_) {
+                Future.delayed(const Duration(milliseconds: 1400), () {
+                  if (mounted) _navigateToStatus(orderId);
+                });
+              });
+            },
+            onError: (error) {
+              Navigator.pop(context); // Fermer le dialog
+              AppFeedback.showError(context, error);
+            },
+            onCancel: () {
+              Navigator.pop(context); // Fermer le dialog
+              AppFeedback.showInfo(context, 'Paiement annulé.');
+            },
+          ),
+        ),
+      ),
+    );
   }
 
   void _navigateToStatus(String orderId) {
@@ -326,9 +367,9 @@ class _PaymentScreenState extends State<PaymentScreen>
               color: const Color(0xFF635BFF).withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              kIsWeb ? Icons.phone_android_rounded : Icons.credit_card_rounded,
-              color: const Color(0xFF635BFF), 
+            child: const Icon(
+              Icons.credit_card_rounded,
+              color: Color(0xFF635BFF), 
               size: 24
             ),
           ),
@@ -338,9 +379,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  kIsWeb 
-                    ? 'Paiement mobile uniquement'
-                    : 'Paiement sécurisé par Stripe',
+                  'Paiement sécurisé par Stripe',
                   style: GoogleFonts.lora(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
@@ -349,7 +388,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 const SizedBox(height: 3),
                 Text(
                     kIsWeb
-                      ? 'Utilisez l\'application mobile iOS ou Android pour effectuer le paiement.'
+                      ? 'Carte bancaire acceptée.\nVos données sont chiffrées SSL.'
                       : 'Carte, Apple Pay, Google Pay acceptés.\nVos données sont chiffrées SSL.',
                     style: GoogleFonts.lora(
                         fontSize: 11.5,
