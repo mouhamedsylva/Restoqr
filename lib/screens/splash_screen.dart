@@ -137,15 +137,10 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _restaurant = {
-          'name':        'Restaurant Demo',
-          'description': 'Expérience Gastronomique',
-          'logoUrl':     null,
-          'address':     null,
-          'phoneNumber': null,
+        setState(() {
+          _hasError = true;
+          _restaurant = null;
         });
-        await Future.delayed(const Duration(milliseconds: 2000));
-        _navigateToMenu();
       }
     }
   }
