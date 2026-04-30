@@ -41,37 +41,68 @@ void main() async {
 Map<String, String> _extractUrlParameters() {
   if (kIsWeb) {
     try {
-      final uri = Uri.parse(html.window.location.href);
+      final fullUrl = html.window.location.href;
+      debugPrint('🔍 URL complète: $fullUrl');
+      
+      final uri = Uri.parse(fullUrl);
+      debugPrint('🔍 URI fragment: ${uri.fragment}');
+      debugPrint('🔍 URI query: ${uri.query}');
       
       // Vérifier d'abord le fragment (hash)
       if (uri.fragment.isNotEmpty) {
+        debugPrint('✓ Fragment trouvé: ${uri.fragment}');
+        
         // Le fragment peut être: /menu?restaurantId=xxx&tableId=xxx
         final fragmentParts = uri.fragment.split('?');
+        debugPrint('🔍 Fragment parts: $fragmentParts');
+        
         if (fragmentParts.length > 1) {
           final queryString = fragmentParts[1];
+          debugPrint('🔍 Query string: $queryString');
+          
           final params = Uri.splitQueryString(queryString);
+          debugPrint('🔍 Params extraits: $params');
+          
           if (params.containsKey('restaurantId') && params.containsKey('tableId')) {
+            debugPrint('✅ Paramètres trouvés!');
+            debugPrint('   - restaurantId: ${params['restaurantId']}');
+            debugPrint('   - tableId: ${params['tableId']}');
             return {
               'restaurantId': params['restaurantId']!,
               'tableId': params['tableId']!,
             };
+          } else {
+            debugPrint('❌ Paramètres manquants dans le fragment');
+            debugPrint('   - restaurantId présent: ${params.containsKey('restaurantId')}');
+            debugPrint('   - tableId présent: ${params.containsKey('tableId')}');
           }
+        } else {
+          debugPrint('❌ Pas de query string dans le fragment');
         }
+      } else {
+        debugPrint('❌ Fragment vide');
       }
       
       // Fallback: vérifier les query parameters normaux
+      debugPrint('🔍 Tentative fallback avec query parameters normaux...');
       if (uri.queryParameters.containsKey('restaurantId') && 
           uri.queryParameters.containsKey('tableId')) {
+        debugPrint('✅ Paramètres trouvés dans query parameters!');
         return {
           'restaurantId': uri.queryParameters['restaurantId']!,
           'tableId': uri.queryParameters['tableId']!,
         };
+      } else {
+        debugPrint('❌ Paramètres non trouvés dans query parameters');
       }
     } catch (e) {
-      debugPrint('Erreur lors de l\'extraction des paramètres URL: $e');
+      debugPrint('❌ Erreur lors de l\'extraction des paramètres URL: $e');
     }
+  } else {
+    debugPrint('❌ Pas en mode Web');
   }
   
+  debugPrint('❌ Aucun paramètre trouvé - Retour map vide');
   return {};
 }
 
