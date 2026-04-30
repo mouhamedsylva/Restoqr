@@ -207,6 +207,8 @@ class _SplashScreenState extends State<SplashScreen>
                   const SizedBox(height: 24),
                   _buildOrnamentDivider(reverse: true),
                   const Spacer(flex: 3),
+                  _buildQRCodeImage(),
+                  const SizedBox(height: 24),
                   _buildTableBadge(),
                   const SizedBox(height: 18),
                   _buildContactRow(),
@@ -481,6 +483,38 @@ class _SplashScreenState extends State<SplashScreen>
               fontStyle: FontStyle.italic,
               letterSpacing: 0.6,
               height: 1.6,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Image QR Code ────────────────────────────────────────────────────────────
+  Widget _buildQRCodeImage() {
+    return FadeTransition(
+      opacity: _footerOpacity,
+      child: Center(
+        child: Container(
+          width: 180,
+          height: 180,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            border: Border.all(color: _gold.withOpacity(0.3), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: _gold.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.asset(
+              'assets/images/qrcode_plats.png',
+              fit: BoxFit.cover,
             ),
           ),
         ),

@@ -11,9 +11,7 @@ import '../services/stripe_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'order_status_screen.dart';
-
-// Import conditionnel pour le widget web
-import '../widgets/stripe_payment_web.dart' if (dart.library.io) '../widgets/stripe_payment_web_stub.dart';
+import '../widgets/stripe_payment_web.dart';
 
 // ── Palette locale ────────────────────────────────────────────────────────────
 const _amber       = Color(0xFFC8901A);
@@ -120,7 +118,7 @@ class _PaymentScreenState extends State<PaymentScreen>
         orderId: order.id,
       );
 
-      // 3. Présenter le paiement (mobile ou web)
+      // 3. Présenter le paiement web
       final result = await stripeService.presentPaymentSheet(
         clientSecret: clientSecret,
         merchantDisplayName: 'QR Order',
@@ -128,14 +126,14 @@ class _PaymentScreenState extends State<PaymentScreen>
 
       if (!mounted) return;
 
-      // 4. Sur web, afficher le formulaire de paiement
-      if (kIsWeb && result.status == 'requires_web_payment') {
+      // 4. Afficher le formulaire de paiement web
+      if (result.status == 'requires_web_payment') {
         _showWebPaymentDialog(clientSecret, order.id);
         setState(() => _isProcessing = false);
         return;
       }
 
-      // 5. Traiter le résultat (mobile)
+      // 5. Traiter les autres résultats (ne devrait pas arriver)
       if (result.success) {
         HapticFeedback.heavyImpact();
         context.read<CartProvider>().clearCart();
@@ -144,9 +142,6 @@ class _PaymentScreenState extends State<PaymentScreen>
         await Future.delayed(const Duration(milliseconds: 1400));
         if (!mounted) return;
         _navigateToStatus(order.id);
-      } else if (result.status == 'canceled') {
-        setState(() => _isProcessing = false);
-        AppFeedback.showInfo(context, 'Paiement annulé.');
       } else {
         final msg = result.errorMessage ?? 'Le paiement a échoué';
         setState(() { _isProcessing = false; _errorMsg = msg; });
@@ -387,9 +382,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 ),
                 const SizedBox(height: 3),
                 Text(
-                    kIsWeb
-                      ? 'Carte bancaire acceptée.\nVos données sont chiffrées SSL.'
-                      : 'Carte, Apple Pay, Google Pay acceptés.\nVos données sont chiffrées SSL.',
+                    'Carte bancaire acceptée.\nVos données sont chiffrées SSL.',
                     style: GoogleFonts.lora(
                         fontSize: 11.5,
                         color: _textSecond,
