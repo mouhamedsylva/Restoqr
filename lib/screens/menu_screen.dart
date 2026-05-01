@@ -66,8 +66,10 @@ class _MenuScreenState extends State<MenuScreen>
 
   Map<String, dynamic>? _restaurantInfo;
   List<Product> _allProducts = [];
-  List<String> _badges = [];
-  String _selectedBadge = 'Tout';
+  List<String> _categories = []; // Catégories pour les onglets en haut
+  List<String> _badges = []; // Badges pour les filtres en bas
+  String _selectedCategory = 'Tout'; // Catégorie sélectionnée
+  String _selectedBadge = ''; // Badge sélectionné (vide = tous)
   String _displayTableNumber = '';
   bool _isLoading = true;
   late ScrollController _scrollController;
@@ -170,9 +172,12 @@ class _MenuScreenState extends State<MenuScreen>
       // Charger tous les plats actifs
       _allProducts = await menuService.getMenu(widget.restaurantId);
       
-      // Charger les badges depuis le backend
+      // Charger les catégories pour les onglets en haut
+      _categories = await menuService.getCategories(widget.restaurantId);
+      
+      // Charger les badges depuis le backend pour les filtres en bas
       final badgesData = await menuService.getBadgesFromBackend(widget.restaurantId);
-      _badges = ['Tout', ...badgesData.map((b) => b['label']!).toList()];
+      _badges = badgesData.map((b) => b['label']!).toList();
       
       _displayTableNumber = widget.tableNumber;
       
@@ -189,12 +194,18 @@ class _MenuScreenState extends State<MenuScreen>
 
   List<Product> get _filteredProducts {
     List<Product> base;
-    // Filtre par badge
-    if (_selectedBadge == 'Tout') {
+    
+    // Filtre par catégorie
+    if (_selectedCategory == 'Tout') {
       base = _allProducts;
     } else {
-      base = _allProducts.where((p) =>
-        (p.badgeLabel != null && p.badgeLabel == _selectedBadge)
+      base = _allProducts.where((p) => p.category == _selectedCategory).toList();
+    }
+    
+    // Filtre par badge (si un badge est sélectionné)
+    if (_selectedBadge.isNotEmpty) {
+      base = base.where((p) => 
+        p.badgeLabel != null && p.badgeLabel == _selectedBadge
       ).toList();
     }
     // Filtre par recherche
@@ -292,9 +303,10 @@ class _MenuScreenState extends State<MenuScreen>
       physics: const BouncingScrollPhysics(),
       slivers: [
         _buildSliverAppBar(),
-        // Masquer les onglets et suggestions pendant la recherche
-        if (!_searchActive) SliverToBoxAdapter(child: _buildBadgeTabs()),
-        if (!_searchActive && _selectedBadge == 'Tout' && _popularProducts.isNotEmpty)
+        // Onglets de catégories en haut
+        if (!_searchActive) SliverToBoxAdapter(child: _buildCategoryTabs()),
+        // Suggestions du Chef (avec filtres badges intégrés)
+        if (!_searchActive && _selectedCategory == 'Tout' && _popularProducts.isNotEmpty)
           SliverToBoxAdapter(child: _buildPopularSection()),
         _buildProductsSection(),
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
@@ -579,10 +591,10 @@ class _MenuScreenState extends State<MenuScreen>
     );
   }
 
-  // ─── Badges (filtres) ─────────────────────────────────────────────────────────
+  // ─── Onglets catégories (en haut) ────────────────────────────────────────────
 
-  Widget _buildBadgeTabs() {
-    if (_badges.isEmpty) return const SizedBox.shrink();
+  Widget _buildCategoryTabs() {
+    if (_categories.isEmpty) return const SizedBox.shrink();
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -591,12 +603,12 @@ class _MenuScreenState extends State<MenuScreen>
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _badges.length,
+          itemCount: _categories.length,
           itemBuilder: (_, index) {
-            final badge = _badges[index];
-            final isSelected = badge == _selectedBadge;
+            final category = _categories[index];
+            final isSelected = category == _selectedCategory;
             return GestureDetector(
-              onTap: () => _onBadgeChanged(badge),
+              onTap: () => _onCategoryChanged(category),
               child: AnimatedContainer(
                 duration: AppTheme.fastAnim,
                 margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -626,7 +638,7 @@ class _MenuScreenState extends State<MenuScreen>
                 ),
                 child: Center(
                   child: Text(
-                    badge,
+                    category,
                     style: TextStyle(
                       color: isSelected ? Colors.white : _textSecondary,
                       fontSize: 13,
@@ -642,6 +654,122 @@ class _MenuScreenState extends State<MenuScreen>
       ),
     );
   }
+
+  void _onCategoryChanged(String category) {
+    setState(() {
+      _selectedCategory = category;
+      _selectedBadge = ''; // Réinitialiser le filtre badge
+    });
+  }
+
+  // ─── Filtres badges (en bas de "Suggestions du Chef") ────────────────────────
+
+  Widget _buildBadgeFilters() {
+    if (_badges.isEmpty) return const SizedBox.shrink();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              const Icon(Icons.filter_list_rounded, color: _textSecondary, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                'Filtrer par badge',
+                style: TextStyle(
+                  color: _textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 42,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: _badges.length + 1, // +1 pour "Tous"
+            itemBuilder: (_, index) {
+              if (index == 0) {
+                // Bouton "Tous"
+                final isSelected = _selectedBadge.isEmpty;
+                return GestureDetector(
+                  onTap: () => _onBadgeChanged(''),
+                  child: AnimatedContainer(
+                    duration: AppTheme.fastAnim,
+                    margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _amber.withOpacity(0.15) : _surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? _amber : _divider,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        'Tous',
+                        style: TextStyle(
+                          color: isSelected ? _amber : _textSecondary,
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+              
+              final badge = _badges[index - 1];
+              final isSelected = badge == _selectedBadge;
+              return GestureDetector(
+                onTap: () => _onBadgeChanged(badge),
+                child: AnimatedContainer(
+                  duration: AppTheme.fastAnim,
+                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _amber.withOpacity(0.15) : _surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected ? _amber : _divider,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      badge,
+                      style: TextStyle(
+                        color: isSelected ? _amber : _textSecondary,
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onBadgeChanged(String badge) {
+    setState(() {
+      _selectedBadge = badge;
+    });
+  }
+
+  // ─── Badges (filtres) ─────────────────────────────────────────────────────────
 
   // ─── Suggestions du Chef ─────────────────────────────────────────────────────
 
@@ -696,6 +824,9 @@ class _MenuScreenState extends State<MenuScreen>
             ),
           ),
         ),
+        const SizedBox(height: 8),
+        // Filtres de badges
+        _buildBadgeFilters(),
         const SizedBox(height: 8),
         // Séparateur décoratif
         Padding(
