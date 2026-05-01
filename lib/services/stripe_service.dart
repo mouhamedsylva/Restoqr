@@ -17,6 +17,37 @@ class StripeService {
     _initialized = true;
   }
 
+  /// Parse les erreurs du backend pour des messages plus clairs
+  String _getErrorMessage(int statusCode, String responseBody) {
+    try {
+      final data = jsonDecode(responseBody);
+      final message = data['message'];
+      
+      // Messages spécifiques selon le code d'erreur
+      switch (statusCode) {
+        case 400:
+          if (message is List) {
+            return 'Données invalides: ${message.join(', ')}';
+          }
+          return message ?? 'Données de paiement invalides';
+        case 401:
+          return 'Authentification requise';
+        case 402:
+          return 'Paiement refusé par votre banque';
+        case 404:
+          return 'Service de paiement non disponible';
+        case 500:
+          return 'Erreur serveur. Réessayez dans quelques instants';
+        case 503:
+          return 'Service temporairement indisponible';
+        default:
+          return message ?? 'Erreur inattendue ($statusCode)';
+      }
+    } catch (e) {
+      return 'Erreur de communication avec le serveur';
+    }
+  }
+
   /// Crée un PaymentIntent côté backend et retourne le clientSecret
   Future<String> createPaymentIntent({
     required double amount,
@@ -24,26 +55,61 @@ class StripeService {
     required String restaurantId,
     required String orderId,
   }) async {
-    final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/payments/intent'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'amount': amount,
-        'currency': currency,
-        'restaurantId': restaurantId,
-        'orderId': orderId,
-      }),
-    );
+    if (kDebugMode) {
+      print('[Stripe] Creating PaymentIntent:');
+      print('  Amount: $amount $currency');
+      print('  Order ID: $orderId');
+      print('  Restaurant ID: $restaurantId');
+    }
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = jsonDecode(response.body);
-      final secret = data['clientSecret'] as String?;
-      if (secret == null || secret.isEmpty) {
-        throw Exception('clientSecret manquant dans la réponse');
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/payments/intent'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': amount,
+          'currency': currency,
+          'restaurantId': restaurantId,
+          'orderId': orderId,
+        }),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Le serveur ne répond pas. Vérifiez votre connexion.');
+        },
+      );
+
+      if (kDebugMode) {
+        print('[Stripe] Response status: ${response.statusCode}');
       }
-      return secret;
-    } else {
-      throw Exception('Erreur PaymentIntent: ${response.statusCode} ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final secret = data['clientSecret'] as String?;
+        
+        if (kDebugMode) {
+          print('[Stripe] PaymentIntent created successfully');
+          if (secret != null && secret.length > 20) {
+            print('  Client Secret: ${secret.substring(0, 20)}...');
+          }
+        }
+        
+        if (secret == null || secret.isEmpty) {
+          throw Exception('clientSecret manquant dans la réponse');
+        }
+        return secret;
+      } else {
+        if (kDebugMode) {
+          print('[Stripe] Error response: ${response.body}');
+        }
+        final errorMessage = _getErrorMessage(response.statusCode, response.body);
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[Stripe] Exception: $e');
+      }
+      rethrow;
     }
   }
 
