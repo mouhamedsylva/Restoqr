@@ -111,8 +111,23 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           })
         ]);
 
-        // Créer le Payment Element
-        final paymentElement = elements.callMethod('create', ['payment']);
+        // Créer le Payment Element avec options
+        final paymentElement = elements.callMethod('create', [
+          'payment',
+          js.JsObject.jsify({
+            'layout': {
+              'type': 'tabs',
+              'defaultCollapsed': false,
+            },
+            'paymentMethodOrder': ['card', 'bancontact'],
+            'fields': {
+              'billingDetails': {
+                'name': 'auto',
+                'email': 'auto',
+              }
+            },
+          })
+        ]);
 
         // Monter le Payment Element
         paymentElement.callMethod('mount', ['#payment-element-container']);
@@ -255,7 +270,7 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Entrez vos informations de carte bancaire',
+            'Entrez vos informations de paiement',
             style: GoogleFonts.lora(
               fontSize: 13,
               color: _textSecond,
@@ -265,7 +280,7 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
 
           // Payment Element
           Container(
-            height: 300,
+            height: 400, // Augmenté de 300 à 400 pour les champs supplémentaires
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
