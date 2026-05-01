@@ -763,11 +763,11 @@ class _MenuScreenState extends State<MenuScreen>
     );
   }
 
-  void _onBadgeChanged(String badge) {
-    setState(() {
-      _selectedBadge = badge;
-    });
-  }
+  // void _onBadgeChanged(String badge) {
+  //   setState(() {
+  //     _selectedBadge = badge;
+  //   });
+  // }
 
   // ─── Badges (filtres) ─────────────────────────────────────────────────────────
 
