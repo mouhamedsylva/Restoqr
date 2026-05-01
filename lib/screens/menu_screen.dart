@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../main.dart'; // Pour CustomCacheManager
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../services/menu_service.dart';
@@ -169,12 +170,9 @@ class _MenuScreenState extends State<MenuScreen>
       // Charger tous les plats actifs
       _allProducts = await menuService.getMenu(widget.restaurantId);
       
-      // Utiliser les catégories comme filtres (avec "Tout" en premier)
-      _badges = await menuService.getCategories(widget.restaurantId);
-      
-      // S'assurer que "Tout" est en premier
-      _badges.remove('Tout');
-      _badges.insert(0, 'Tout');
+      // Charger les badges depuis le backend
+      final badgesData = await menuService.getBadgesFromBackend(widget.restaurantId);
+      _badges = ['Tout', ...badgesData.map((b) => b['label']!).toList()];
       
       _displayTableNumber = widget.tableNumber;
       
@@ -191,12 +189,11 @@ class _MenuScreenState extends State<MenuScreen>
 
   List<Product> get _filteredProducts {
     List<Product> base;
-    // Filtre par catégorie/badge
+    // Filtre par badge
     if (_selectedBadge == 'Tout') {
       base = _allProducts;
     } else {
       base = _allProducts.where((p) =>
-        p.category == _selectedBadge ||
         (p.badgeLabel != null && p.badgeLabel == _selectedBadge)
       ).toList();
     }
@@ -1068,8 +1065,24 @@ class _ProductCard extends StatelessWidget {
                         CachedNetworkImage(
                           imageUrl: product.imageUrl,
                           fit: BoxFit.cover,
-                          placeholder: (_, __) =>
-                              Container(color: _surfaceVariant),
+                          cacheManager: CustomCacheManager.instance,
+                          maxHeightDiskCache: 400,
+                          maxWidthDiskCache: 400,
+                          memCacheHeight: 400,
+                          memCacheWidth: 400,
+                          placeholder: (_, __) => Container(
+                            color: _surfaceVariant,
+                            child: Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(_amber.withOpacity(0.5)),
+                                ),
+                              ),
+                            ),
+                          ),
                           errorWidget: (_, __, ___) =>
                               Container(color: _surfaceVariant,
                                 child: const Icon(Icons.restaurant,
@@ -1088,35 +1101,6 @@ class _ProductCard extends StatelessWidget {
                               child: const Text('✦',
                                   style: TextStyle(
                                       color: Colors.white, fontSize: 9)),
-                            ),
-                          ),
-                        if (product.badgeLabel != null && product.badgeLabel!.isNotEmpty)
-                          Positioned(
-                            bottom: 8, left: 8,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: product.badgeColor != null 
-                                  ? _parseColor(product.badgeColor!)
-                                  : _amber,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                product.badgeLabel!,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
                             ),
                           ),
                       ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // Pour kDebugMode
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
 
@@ -13,6 +15,20 @@ import 'services/stripe_service.dart';
 import 'screens/menu_screen.dart'; // Import MenuScreen
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
+
+// Configuration du cache pour les images
+class CustomCacheManager {
+  static const key = 'customCacheKey';
+  static CacheManager instance = CacheManager(
+    Config(
+      key,
+      stalePeriod: const Duration(days: 7), // Cache pendant 7 jours
+      maxNrOfCacheObjects: 200, // Maximum 200 images en cache
+      repo: JsonCacheInfoRepository(databaseName: key),
+      fileService: HttpFileService(),
+    ),
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

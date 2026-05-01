@@ -132,7 +132,8 @@ class _SplashScreenState extends State<SplashScreen>
       final info    = await service.getRestaurantInfo(widget.restaurantId);
       if (mounted) {
         setState(() => _restaurant = info);
-        await Future.delayed(const Duration(milliseconds: 2400));
+        // Attendre 4 secondes pour que l'utilisateur voie toute la page
+        await Future.delayed(const Duration(milliseconds: 4000));
         _navigateToMenu();
       }
     } catch (e) {
@@ -512,9 +513,46 @@ class _SplashScreenState extends State<SplashScreen>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.asset(
-              'assets/images/qrcode_plats.png',
-              fit: BoxFit.cover,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Fond dégradé
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        _cream,
+                        _goldPale.withOpacity(0.3),
+                      ],
+                    ),
+                  ),
+                ),
+                // Icône QR Code
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.qr_code_2_rounded,
+                        size: 80,
+                        color: _gold.withOpacity(0.8),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'MENU DIGITAL',
+                        style: GoogleFonts.cormorantGaramond(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _textMid,
+                          letterSpacing: 2.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),

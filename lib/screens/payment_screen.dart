@@ -124,10 +124,18 @@ class _PaymentScreenState extends State<PaymentScreen>
         merchantDisplayName: 'QR Order',
       );
 
+      if (kDebugMode) {
+        print('[PaymentScreen] Payment result status: ${result.status}');
+        print('[PaymentScreen] Client secret: ${clientSecret.substring(0, 20)}...');
+      }
+
       if (!mounted) return;
 
       // 4. Afficher le formulaire de paiement web
       if (result.status == 'requires_web_payment') {
+        if (kDebugMode) {
+          print('[PaymentScreen] Showing web payment dialog');
+        }
         _showWebPaymentDialog(clientSecret, order.id);
         setState(() => _isProcessing = false);
         return;
@@ -156,41 +164,60 @@ class _PaymentScreenState extends State<PaymentScreen>
   }
 
   void _showWebPaymentDialog(String clientSecret, String orderId) {
+    if (kDebugMode) {
+      print('[PaymentScreen] Opening Stripe payment dialog');
+      print('[PaymentScreen] Order ID: $orderId');
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: _bg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
-          child: StripePaymentWeb(
-            clientSecret: clientSecret,
-            amount: widget.total,
-            onSuccess: () {
-              Navigator.pop(context); // Fermer le dialog
-              HapticFeedback.heavyImpact();
-              context.read<CartProvider>().clearCart();
-              setState(() { _showSuccess = true; });
-              _successCtrl.forward().then((_) {
-                Future.delayed(const Duration(milliseconds: 1400), () {
-                  if (mounted) _navigateToStatus(orderId);
-                });
-              });
-            },
-            onError: (error) {
-              Navigator.pop(context); // Fermer le dialog
-              AppFeedback.showError(context, error);
-            },
-            onCancel: () {
-              Navigator.pop(context); // Fermer le dialog
-              AppFeedback.showInfo(context, 'Paiement annulé.');
-            },
+      builder: (context) {
+        if (kDebugMode) {
+          print('[PaymentScreen] Dialog builder called');
+        }
+        return Dialog(
+          backgroundColor: _bg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
           ),
-        ),
-      ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            child: StripePaymentWeb(
+              clientSecret: clientSecret,
+              amount: widget.total,
+              onSuccess: () {
+                if (kDebugMode) {
+                  print('[PaymentScreen] Payment success callback');
+                }
+                Navigator.pop(context); // Fermer le dialog
+                HapticFeedback.heavyImpact();
+                context.read<CartProvider>().clearCart();
+                setState(() { _showSuccess = true; });
+                _successCtrl.forward().then((_) {
+                  Future.delayed(const Duration(milliseconds: 1400), () {
+                    if (mounted) _navigateToStatus(orderId);
+                  });
+                });
+              },
+              onError: (error) {
+                if (kDebugMode) {
+                  print('[PaymentScreen] Payment error: $error');
+                }
+                Navigator.pop(context); // Fermer le dialog
+                AppFeedback.showError(context, error);
+              },
+              onCancel: () {
+                if (kDebugMode) {
+                  print('[PaymentScreen] Payment cancelled');
+                }
+                Navigator.pop(context); // Fermer le dialog
+                AppFeedback.showInfo(context, 'Paiement annulé.');
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 

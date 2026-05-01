@@ -130,6 +130,33 @@ class MenuService {
     return _cachedBadges;
   }
 
+  /// Récupère les badges depuis l'endpoint dédié du backend
+  Future<List<Map<String, String>>> getBadgesFromBackend(String restaurantId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/menus/badges/$restaurantId'),
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((badge) => {
+          'label': badge['label'] as String,
+          'color': badge['color'] as String,
+        }).toList();
+      } else {
+        if (kDebugMode) {
+          print('[MenuService] Error fetching badges: ${response.statusCode}');
+        }
+        return [];
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[MenuService] Exception fetching badges: $e');
+      }
+      return [];
+    }
+  }
+
   Future<List<Product>> getDishesOfDay(String restaurantId) async {
     if (_cachedProducts.isEmpty) {
       await _fetchData(restaurantId);

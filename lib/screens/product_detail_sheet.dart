@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../main.dart'; // Pour CustomCacheManager
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../utils/app_feedback.dart';
@@ -203,7 +204,20 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
             child: CachedNetworkImage(
               imageUrl: p.imageUrl,
               fit: BoxFit.cover,
-              placeholder: (_, __) => Container(color: _surfaceVar),
+              cacheManager: CustomCacheManager.instance,
+              maxHeightDiskCache: 800,
+              maxWidthDiskCache: 800,
+              memCacheHeight: 800,
+              memCacheWidth: 800,
+              placeholder: (_, __) => Container(
+                color: _surfaceVar,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(_amber.withOpacity(0.5)),
+                  ),
+                ),
+              ),
               errorWidget: (_, __, ___) => Container(
                 color: _surfaceVar,
                 child: const Icon(Icons.restaurant, color: _amber, size: 64),
