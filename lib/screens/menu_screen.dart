@@ -8,10 +8,12 @@ import 'package:shimmer/shimmer.dart';
 import '../main.dart'; // Pour CustomCacheManager
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
+import '../providers/order_provider.dart';
 import '../services/menu_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'cart_screen.dart';
+import 'order_status_screen.dart';
 import 'product_detail_sheet.dart';
 
 // ─── Design tokens (blanc + ambre/or) ─────────────────────────────────────────
@@ -316,6 +318,110 @@ class _MenuScreenState extends State<MenuScreen>
 
   // ─── Barre de recherche expansible ───────────────────────────────────────────
 
+  Widget _buildActiveOrderButton() {
+    return Consumer<OrderProvider>(
+      builder: (context, orderProvider, _) {
+        final currentOrder = orderProvider.currentOrder;
+        
+        // Si pas de commande en cours, ne rien afficher
+        if (currentOrder == null) {
+          return const SizedBox.shrink();
+        }
+        
+        // Si la commande est terminée ou annulée, ne pas afficher le bouton
+        final status = orderProvider.currentStatus;
+        if (status == OrderStatus.completed || status == OrderStatus.cancelled) {
+          return const SizedBox.shrink();
+        }
+        
+        return Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (_, animation, __) => OrderStatusScreen(
+                    orderId: currentOrder.id,
+                    tableNumber: widget.tableNumber,
+                    restaurantId: widget.restaurantId,
+                  ),
+                  transitionsBuilder: (_, animation, __, child) {
+                    return SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(-1, 0),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: AppTheme.defaultCurve,
+                        ),
+                      ),
+                      child: child,
+                    );
+                  },
+                  transitionDuration: AppTheme.mediumAnim,
+                ),
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _amber,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: _amber.withOpacity(0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icône animée
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 1500),
+                    builder: (context, value, child) {
+                      return Transform.scale(
+                        scale: 1.0 + (0.15 * (0.5 - (value - 0.5).abs())),
+                        child: child,
+                      );
+                    },
+                    onEnd: () {
+                      // Relancer l'animation en boucle
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                    child: const Icon(
+                      Icons.receipt_long_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'Commande\nen cours',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSearchBar() {
     return AnimatedBuilder(
       animation: _searchWidthAnim,
@@ -436,6 +542,7 @@ class _MenuScreenState extends State<MenuScreen>
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       automaticallyImplyLeading: false,
+      leading: _buildActiveOrderButton(),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
