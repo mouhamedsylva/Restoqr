@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../main.dart'; // Pour CustomCacheManager
+import '../models/order.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
