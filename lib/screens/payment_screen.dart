@@ -96,7 +96,7 @@ class _PaymentScreenState extends State<PaymentScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      // 1. Créer la commande
+      // 1. Créer la commande avec statut UNPAID
       final orderProvider = context.read<OrderProvider>();
       final order = await orderProvider.submitOrder(
         restaurantId: widget.restaurantId,
@@ -118,43 +118,21 @@ class _PaymentScreenState extends State<PaymentScreen>
         orderId: order.id,
       );
 
-      // 3. Présenter le paiement web
-      final result = await stripeService.presentPaymentSheet(
-        clientSecret: clientSecret,
-        merchantDisplayName: 'QR Order',
-      );
-
       if (kDebugMode) {
-        print('[PaymentScreen] Payment result status: ${result.status}');
+        print('[PaymentScreen] Order created: ${order.id}');
+        print('[PaymentScreen] PaymentIntent created');
         print('[PaymentScreen] Client secret: ${clientSecret.substring(0, 20)}...');
       }
 
       if (!mounted) return;
 
-      // 4. Afficher le formulaire de paiement web
-      if (result.status == 'requires_web_payment') {
-        if (kDebugMode) {
-          print('[PaymentScreen] Showing web payment dialog');
-        }
-        _showWebPaymentDialog(clientSecret, order.id);
-        setState(() => _isProcessing = false);
-        return;
+      // 3. Afficher le formulaire de paiement web
+      if (kDebugMode) {
+        print('[PaymentScreen] Showing web payment dialog');
       }
-
-      // 5. Traiter les autres résultats (ne devrait pas arriver)
-      if (result.success) {
-        HapticFeedback.heavyImpact();
-        context.read<CartProvider>().clearCart();
-        setState(() { _isProcessing = false; _showSuccess = true; });
-        await _successCtrl.forward();
-        await Future.delayed(const Duration(milliseconds: 1400));
-        if (!mounted) return;
-        _navigateToStatus(order.id);
-      } else {
-        final msg = result.errorMessage ?? 'Le paiement a échoué';
-        setState(() { _isProcessing = false; _errorMsg = msg; });
-        AppFeedback.showError(context, msg);
-      }
+      _showWebPaymentDialog(clientSecret, order.id);
+      setState(() => _isProcessing = false);
+      
     } catch (e) {
       if (!mounted) return;
       const msg = 'Une erreur est survenue. Réessayez.';
@@ -182,7 +160,10 @@ class _PaymentScreenState extends State<PaymentScreen>
             borderRadius: BorderRadius.circular(24),
           ),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+            constraints: const BoxConstraints(
+              maxWidth: 550,
+              maxHeight: 750, // Augmenté pour voir tous les champs
+            ),
             child: StripePaymentWeb(
               clientSecret: clientSecret,
               amount: widget.total,

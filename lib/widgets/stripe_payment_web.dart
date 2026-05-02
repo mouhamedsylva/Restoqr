@@ -116,21 +116,29 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           'payment',
           js.JsObject.jsify({
             'layout': {
-              'type': 'tabs',
+              'type': 'accordion',
               'defaultCollapsed': false,
               'radios': false,
-              'spacedAccordionItems': false,
+              'spacedAccordionItems': true,
+            },
+            'defaultValues': {
+              'billingDetails': {
+                'name': '',
+                'email': '',
+              }
             },
             'paymentMethodOrder': ['card', 'bancontact'],
             'fields': {
               'billingDetails': {
                 'name': 'auto',
                 'email': 'auto',
+                'phone': 'never',
                 'address': 'never',
               }
             },
             'terms': {
               'card': 'never',
+              'bancontact': 'never',
             },
           })
         ]);
@@ -299,186 +307,212 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return Container(
-      padding: const EdgeInsets.all(20),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Titre
-            Text(
-              'Informations de paiement',
-              style: GoogleFonts.playfairDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: _textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Entrez vos informations de paiement',
-              style: GoogleFonts.lora(
-                fontSize: 13,
-                color: _textSecond,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Payment Element
-            Container(
-              height: 480, // Augmenté pour afficher tous les champs
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFEDE8D8)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: HtmlElementView(viewType: _viewId),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Message d'erreur
-            if (_errorMessage != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F0),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFFCDD2)),
+      constraints: BoxConstraints(
+        maxHeight: screenHeight * 0.85, // 85% de la hauteur de l'écran
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header fixe
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Informations de paiement',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: _textPrimary,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.error_outline_rounded,
-                      color: Color(0xFFB71C1C),
-                      size: 18,
+                const SizedBox(height: 8),
+                Text(
+                  'Entrez vos informations de paiement',
+                  style: GoogleFonts.lora(
+                    fontSize: 13,
+                    color: _textSecond,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+
+          // Contenu scrollable
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Payment Element
+                  Container(
+                    height: 550, // Hauteur augmentée pour tous les champs
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEDE8D8)),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: GoogleFonts.lora(
-                          fontSize: 13,
-                          color: const Color(0xFFB71C1C),
-                          fontWeight: FontWeight.w600,
-                        ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: HtmlElementView(viewType: _viewId),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Message d'erreur
+                  if (_errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0F0),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFFFCDD2)),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 24),
-
-            // Bouton payer
-            GestureDetector(
-              onTap: _isProcessing ? null : _handleSubmit,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: 58,
-                decoration: BoxDecoration(
-                  gradient: _isProcessing
-                      ? null
-                      : const LinearGradient(
-                          colors: [_amberLight, _amber],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                  color: _isProcessing ? const Color(0xFFEDE8D8) : null,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: _isProcessing
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: _amber.withOpacity(0.35),
-                            blurRadius: 14,
-                            offset: const Offset(0, 5),
-                          )
-                        ],
-                ),
-                child: Center(
-                  child: _isProcessing
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: _amber,
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.error_outline_rounded,
+                            color: Color(0xFFB71C1C),
+                            size: 18,
                           ),
-                        )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.lock_rounded,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Payer ${widget.amount.toStringAsFixed(2)} €',
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
                               style: GoogleFonts.lora(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                                color: const Color(0xFFB71C1C),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 24),
+
+                  // Bouton payer
+                  GestureDetector(
+                    onTap: _isProcessing ? null : _handleSubmit,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 58,
+                      decoration: BoxDecoration(
+                        gradient: _isProcessing
+                            ? null
+                            : const LinearGradient(
+                                colors: [_amberLight, _amber],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                        color: _isProcessing ? const Color(0xFFEDE8D8) : null,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: _isProcessing
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: _amber.withOpacity(0.35),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5),
+                                )
+                              ],
+                      ),
+                      child: Center(
+                        child: _isProcessing
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: _amber,
+                                ),
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.lock_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Payer ${widget.amount.toStringAsFixed(2)} €',
+                                    style: GoogleFonts.lora(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Bouton annuler
+                  TextButton(
+                    onPressed: _isProcessing ? null : widget.onCancel,
+                    child: Text(
+                      'Annuler',
+                      style: GoogleFonts.lora(
+                        fontSize: 14,
+                        color: _textSecond,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Badge sécurité
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_outline_rounded,
+                          size: 12,
+                          color: Color(0xFFA89F85),
                         ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Bouton annuler
-            TextButton(
-              onPressed: _isProcessing ? null : widget.onCancel,
-              child: Text(
-                'Annuler',
-                style: GoogleFonts.lora(
-                  fontSize: 14,
-                  color: _textSecond,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Badge sécurité
-            Center(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.lock_outline_rounded,
-                    size: 12,
-                    color: Color(0xFFA89F85),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Paiement sécurisé par ',
-                    style: GoogleFonts.lora(
-                      fontSize: 10,
-                      color: const Color(0xFFA89F85),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Paiement sécurisé par ',
+                          style: GoogleFonts.lora(
+                            fontSize: 10,
+                            color: const Color(0xFFA89F85),
+                          ),
+                        ),
+                        Text(
+                          'stripe',
+                          style: GoogleFonts.lora(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFF635BFF),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Text(
-                    'stripe',
-                    style: GoogleFonts.lora(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF635BFF),
-                    ),
-                  ),
+                  
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
