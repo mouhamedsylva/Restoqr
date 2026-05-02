@@ -562,6 +562,22 @@ class _SplashScreenState extends State<SplashScreen>
 
   // ─── Badge table ──────────────────────────────────────────────────────────────
   Widget _buildTableBadge() {
+    // Extraire le numéro de table depuis l'ID ou utiliser un format lisible
+    String tableDisplay = 'TABLE';
+    
+    // Si le tableId contient un numéro, l'extraire
+    // Sinon, utiliser les 4 premiers caractères de l'UUID
+    final tableId = widget.tableId;
+    final numberMatch = RegExp(r'\d+').firstMatch(tableId);
+    
+    if (numberMatch != null) {
+      tableDisplay = 'TABLE ${numberMatch.group(0)}';
+    } else if (tableId.length >= 4) {
+      tableDisplay = 'TABLE ${tableId.substring(0, 4).toUpperCase()}';
+    } else {
+      tableDisplay = 'TABLE ${tableId.toUpperCase()}';
+    }
+    
     return FadeTransition(
       opacity: _footerOpacity,
       child: Container(
@@ -584,7 +600,7 @@ class _SplashScreenState extends State<SplashScreen>
             Icon(Icons.table_restaurant_rounded, color: _gold, size: 14),
             const SizedBox(width: 8),
             Text(
-              'TABLE  ${widget.tableId.length > 8 ? widget.tableId.substring(0, 8).toUpperCase() : widget.tableId.toUpperCase()}',
+              tableDisplay,
               style: GoogleFonts.cormorantGaramond(
                 fontSize: 13,
                 color: _textDark,

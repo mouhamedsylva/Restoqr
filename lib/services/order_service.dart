@@ -127,6 +127,26 @@ class OrderService {
     return response.statusCode == 200;
   }
 
+  /// Met à jour les informations du client (nom et email)
+  Future<bool> updateCustomerInfo(
+    String orderId, {
+    String? customerName,
+    String? customerEmail,
+  }) async {
+    final body = <String, dynamic>{};
+    if (customerName != null) body['customerName'] = customerName;
+    if (customerEmail != null) body['customerEmail'] = customerEmail;
+
+    if (body.isEmpty) return false;
+
+    final response = await http.put(
+      Uri.parse('${ApiConfig.baseUrl}/orders/$orderId/customer'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    );
+    return response.statusCode == 200;
+  }
+
   void dispose() {
     _socket?.disconnect();
     _socket?.dispose();

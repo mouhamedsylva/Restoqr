@@ -59,6 +59,26 @@ class OrderProvider extends ChangeNotifier {
     });
   }
 
+  /// Met à jour les informations du client (nom et email)
+  Future<bool> updateCustomerInfo(
+    String orderId, {
+    String? customerName,
+    String? customerEmail,
+  }) async {
+    try {
+      return await _orderService.updateCustomerInfo(
+        orderId,
+        customerName: customerName,
+        customerEmail: customerEmail,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('[OrderProvider] Failed to update customer info: $e');
+      }
+      return false;
+    }
+  }
+
   /// Réinitialise le provider pour une nouvelle commande
   void reset() {
     _state = OrderProviderState.idle;

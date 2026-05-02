@@ -20,7 +20,7 @@ const _textSecond = Color(0xFF6B6350);
 class StripePaymentWeb extends StatefulWidget {
   final String clientSecret;
   final double amount;
-  final VoidCallback onSuccess;
+  final Function(Map<String, String>? billingDetails) onSuccess;
   final Function(String) onError;
   final VoidCallback onCancel;
 
@@ -198,7 +198,10 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
         if (kDebugMode) {
           print('[Stripe] Payment successful');
         }
-        widget.onSuccess();
+        
+        // Récupérer les billing details s'ils existent
+        final billingDetails = result['billingDetails'] as Map<String, String>?;
+        widget.onSuccess(billingDetails);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -241,10 +244,38 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
         print('[Stripe] Payment confirmed (assumed success)');
       }
 
+      // Récupérer les billing details depuis le Payment Element
+      Map<String, String>? billingDetails;
+      try {
+        final value = elements.callMethod('getElement', ['payment']);
+        if (value != null) {
+          // Les billing details sont stockés dans l'élément
+          // On va les récupérer via le DOM
+          final nameInput = html.document.querySelector('input[name="name"]') as html.InputElement?;
+          final emailInput = html.document.querySelector('input[name="email"]') as html.InputElement?;
+          
+          if (nameInput != null || emailInput != null) {
+            billingDetails = {
+              if (nameInput != null && nameInput.value.isNotEmpty) 'name': nameInput.value,
+              if (emailInput != null && emailInput.value.isNotEmpty) 'email': emailInput.value,
+            };
+            
+            if (kDebugMode) {
+              print('[Stripe] Billing details retrieved: $billingDetails');
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('[Stripe] Could not retrieve billing details: $e');
+        }
+      }
+
       return {
         'paymentIntent': {
           'status': 'succeeded',
-        }
+        },
+        if (billingDetails != null) 'billingDetails': billingDetails,
       };
     } catch (e) {
       if (kDebugMode) {

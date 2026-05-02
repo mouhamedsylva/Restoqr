@@ -186,10 +186,31 @@ class _PaymentScreenState extends State<PaymentScreen>
             child: StripePaymentWeb(
               clientSecret: clientSecret,
               amount: widget.total,
-              onSuccess: () {
+              onSuccess: (billingDetails) async {
                 if (kDebugMode) {
                   print('[PaymentScreen] Payment success callback');
+                  print('[PaymentScreen] Billing details: $billingDetails');
                 }
+                
+                // Si on a des billing details, mettre à jour la commande
+                if (billingDetails != null && (billingDetails['name'] != null || billingDetails['email'] != null)) {
+                  try {
+                    final orderProvider = context.read<OrderProvider>();
+                    await orderProvider.updateCustomerInfo(
+                      orderId,
+                      customerName: billingDetails['name'],
+                      customerEmail: billingDetails['email'],
+                    );
+                    if (kDebugMode) {
+                      print('[PaymentScreen] Customer info updated successfully');
+                    }
+                  } catch (e) {
+                    if (kDebugMode) {
+                      print('[PaymentScreen] Failed to update customer info: $e');
+                    }
+                  }
+                }
+                
                 Navigator.pop(context); // Fermer le dialog
                 HapticFeedback.heavyImpact();
                 context.read<CartProvider>().clearCart();
