@@ -255,13 +255,21 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           final emailInput = html.document.querySelector('input[name="email"]') as html.InputElement?;
           
           if (nameInput != null || emailInput != null) {
-            billingDetails = {
-              if (nameInput != null && nameInput.value.isNotEmpty) 'name': nameInput.value,
-              if (emailInput != null && emailInput.value.isNotEmpty) 'email': emailInput.value,
-            };
+            final tempDetails = <String, String>{};
             
-            if (kDebugMode) {
-              print('[Stripe] Billing details retrieved: $billingDetails');
+            if (nameInput != null && nameInput.value != null && nameInput.value!.isNotEmpty) {
+              tempDetails['name'] = nameInput.value!;
+            }
+            if (emailInput != null && emailInput.value != null && emailInput.value!.isNotEmpty) {
+              tempDetails['email'] = emailInput.value!;
+            }
+            
+            if (tempDetails.isNotEmpty) {
+              billingDetails = tempDetails;
+              
+              if (kDebugMode) {
+                print('[Stripe] Billing details retrieved: $billingDetails');
+              }
             }
           }
         }

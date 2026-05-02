@@ -28,8 +28,6 @@ class OrderService {
       'restaurantId': restaurantId,
       'tableId': tableNumber,
       'type': type,
-      if (customerName != null && customerName.isNotEmpty) 'customerName': customerName,
-      if (note != null && note.isNotEmpty) 'note': note,
       'items': cartItems.map((item) => {
         'menuItemId': item.product.id,
         'quantity': item.quantity,
@@ -37,6 +35,14 @@ class OrderService {
           'notes': item.specialInstructions,
       }).toList()
     };
+    
+    // Add optional fields
+    if (customerName != null && customerName.isNotEmpty) {
+      requestBody['customerName'] = customerName;
+    }
+    if (note != null && note.isNotEmpty) {
+      requestBody['note'] = note;
+    }
     
     print('📤 Request body: ${jsonEncode(requestBody)}');
     
