@@ -10,6 +10,7 @@ class Product {
   final double rating;
   final int reviewCount;
   final bool isPopular;
+  final bool isChefSuggestion;
   final List<String> tags;
   final bool isActive;
   final List<String> allergens;
@@ -28,6 +29,7 @@ class Product {
     this.rating = 4.5,
     this.reviewCount = 0,
     this.isPopular = false,
+    this.isChefSuggestion = false,
     this.tags = const [],
     this.isActive = true,
     this.allergens = const [],
@@ -83,6 +85,7 @@ class Product {
       imageUrl: imageUrl,
       category: categoryName,
       isPopular: (json['ordersCount'] ?? 0) > 10 || json['isDishOfDay'] == true || json['isDishOfDay'] == 1,
+      isChefSuggestion: json['isChefSuggestion'] == true || json['isChefSuggestion'] == 1,
       tags: parsedTags,
       isActive: json['isActive'] ?? true,
       allergens: parsedAllergens,

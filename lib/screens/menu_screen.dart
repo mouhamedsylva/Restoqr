@@ -226,6 +226,9 @@ class _MenuScreenState extends State<MenuScreen>
   List<Product> get _popularProducts =>
       _allProducts.where((p) => p.isPopular).toList();
 
+  List<Product> get _chefSuggestions =>
+      _allProducts.where((p) => p.isChefSuggestion).toList();
+
   void _onBadgeChanged(String badge) {
     setState(() => _selectedBadge = badge);
   }
@@ -309,8 +312,8 @@ class _MenuScreenState extends State<MenuScreen>
         // Onglets de catégories en haut
         if (!_searchActive) SliverToBoxAdapter(child: _buildCategoryTabs()),
         // Suggestions du Chef (avec filtres badges intégrés)
-        if (!_searchActive && _selectedCategory == 'Tout' && _popularProducts.isNotEmpty)
-          SliverToBoxAdapter(child: _buildPopularSection()),
+        if (!_searchActive && _selectedCategory == 'Tout' && _chefSuggestions.isNotEmpty)
+          SliverToBoxAdapter(child: _buildChefSuggestionsSection()),
         _buildProductsSection(),
         const SliverToBoxAdapter(child: SizedBox(height: 120)),
       ],
@@ -881,7 +884,7 @@ class _MenuScreenState extends State<MenuScreen>
 
   // ─── Suggestions du Chef ─────────────────────────────────────────────────────
 
-  Widget _buildPopularSection() {
+  Widget _buildChefSuggestionsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -925,10 +928,10 @@ class _MenuScreenState extends State<MenuScreen>
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _popularProducts.length,
+            itemCount: _chefSuggestions.length,
             itemBuilder: (context, index) => GestureDetector(
-              onTap: () => showProductDetail(context, _popularProducts[index]),
-              child: _PopularCard(product: _popularProducts[index]),
+              onTap: () => showProductDetail(context, _chefSuggestions[index]),
+              child: _PopularCard(product: _chefSuggestions[index]),
             ),
           ),
         ),
