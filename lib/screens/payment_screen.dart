@@ -96,55 +96,49 @@ class _PaymentScreenState extends State<PaymentScreen>
     HapticFeedback.mediumImpact();
 
     try {
-      // 1. Créer la commande avec statut UNPAID
-      final orderProvider = context.read<OrderProvider>();
-      final order = await orderProvider.submitOrder(
-        restaurantId: widget.restaurantId,
-        tableNumber: widget.tableNumber,
-        cartItems: widget.cartItems,
-      );
-      if (order == null || !mounted) {
-        setState(() => _isProcessing = false);
-        AppFeedback.showError(context, 'Impossible de créer la commande. Réessayez.');
-        return;
-      }
-
-      // 2. Créer le PaymentIntent côté backend
+      // 1. Créer le PaymentIntent SANS créer la commande
+      // On passe les données de commande dans les metadata
       final stripeService = context.read<StripeService>();
-      final clientSecret = await stripeService.createPaymentIntent(
+      
+      // Préparer les items pour les metadata
+      final itemsJson = widget.cartItems.map((item) => {
+        'menuItemId': item.product.id,
+        'quantity': item.quantity,
+      }).toList();
+      
+      final clientSecret = await stripeService.createPaymentIntentWithoutOrder(
         amount: widget.total,
         currency: 'eur',
         restaurantId: widget.restaurantId,
-        orderId: order.id,
+        tableId: widget.tableNumber,
+        items: itemsJson,
       );
 
       if (kDebugMode) {
-        print('[PaymentScreen] Order created: ${order.id}');
-        print('[PaymentScreen] PaymentIntent created');
+        print('[PaymentScreen] PaymentIntent created WITHOUT order');
         print('[PaymentScreen] Client secret: ${clientSecret.substring(0, 20)}...');
       }
 
       if (!mounted) return;
 
-      // 3. Afficher le formulaire de paiement web
+      // 2. Afficher le formulaire de paiement web
       if (kDebugMode) {
         print('[PaymentScreen] Showing web payment dialog');
       }
-      _showWebPaymentDialog(clientSecret, order.id);
+      _showWebPaymentDialog(clientSecret);
       setState(() => _isProcessing = false);
       
     } catch (e) {
       if (!mounted) return;
-      const msg = 'Une erreur est survenue. Réessayez.';
+      final msg = 'Une erreur est survenue: ${e.toString()}';
       setState(() { _isProcessing = false; _errorMsg = msg; });
       AppFeedback.showError(context, msg);
     }
   }
 
-  void _showWebPaymentDialog(String clientSecret, String orderId) {
+  void _showWebPaymentDialog(String clientSecret) {
     if (kDebugMode) {
       print('[PaymentScreen] Opening Stripe payment dialog');
-      print('[PaymentScreen] Order ID: $orderId');
     }
 
     showDialog(
@@ -173,34 +167,59 @@ class _PaymentScreenState extends State<PaymentScreen>
                   print('[PaymentScreen] Billing details: $billingDetails');
                 }
                 
-                // Si on a des billing details, mettre à jour la commande
-                if (billingDetails != null && (billingDetails['name'] != null || billingDetails['email'] != null)) {
-                  try {
-                    final orderProvider = context.read<OrderProvider>();
-                    await orderProvider.updateCustomerInfo(
-                      orderId,
-                      customerName: billingDetails['name'],
-                      customerEmail: billingDetails['email'],
-                    );
-                    if (kDebugMode) {
-                      print('[PaymentScreen] Customer info updated successfully');
-                    }
-                  } catch (e) {
-                    if (kDebugMode) {
-                      print('[PaymentScreen] Failed to update customer info: $e');
+                Navigator.pop(context); // Fermer le dialog
+                
+                // Maintenant créer la commande après paiement réussi
+                try {
+                  final orderProvider = context.read<OrderProvider>();
+                  final order = await orderProvider.submitOrder(
+                    restaurantId: widget.restaurantId,
+                    tableNumber: widget.tableNumber,
+                    cartItems: widget.cartItems,
+                  );
+                  
+                  if (order == null) {
+                    AppFeedback.showError(context, 'Erreur lors de la création de la commande');
+                    return;
+                  }
+                  
+                  if (kDebugMode) {
+                    print('[PaymentScreen] Order created after payment: ${order.id}');
+                  }
+                  
+                  // Mettre à jour les infos client si disponibles
+                  if (billingDetails != null && (billingDetails['name'] != null || billingDetails['email'] != null)) {
+                    try {
+                      await orderProvider.updateCustomerInfo(
+                        order.id,
+                        customerName: billingDetails['name'],
+                        customerEmail: billingDetails['email'],
+                      );
+                      if (kDebugMode) {
+                        print('[PaymentScreen] Customer info updated successfully');
+                      }
+                    } catch (e) {
+                      if (kDebugMode) {
+                        print('[PaymentScreen] Failed to update customer info: $e');
+                      }
                     }
                   }
-                }
-                
-                Navigator.pop(context); // Fermer le dialog
-                HapticFeedback.heavyImpact();
-                context.read<CartProvider>().clearCart();
-                setState(() { _showSuccess = true; });
-                _successCtrl.forward().then((_) {
-                  Future.delayed(const Duration(milliseconds: 1400), () {
-                    if (mounted) _navigateToStatus(orderId);
+                  
+                  // Afficher le succès
+                  HapticFeedback.heavyImpact();
+                  context.read<CartProvider>().clearCart();
+                  setState(() { _showSuccess = true; });
+                  _successCtrl.forward().then((_) {
+                    Future.delayed(const Duration(milliseconds: 1400), () {
+                      if (mounted) _navigateToStatus(order.id);
+                    });
                   });
-                });
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('[PaymentScreen] Error creating order: $e');
+                  }
+                  AppFeedback.showError(context, 'Paiement réussi mais erreur lors de la création de la commande');
+                }
               },
               onError: (error) {
                 if (kDebugMode) {

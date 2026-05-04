@@ -113,6 +113,75 @@ class StripeService {
     }
   }
 
+  /// Crée un PaymentIntent SANS créer de commande
+  /// Les données de commande sont passées dans les metadata
+  Future<String> createPaymentIntentWithoutOrder({
+    required double amount,
+    required String currency,
+    required String restaurantId,
+    required String tableId,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    if (kDebugMode) {
+      print('[Stripe] Creating PaymentIntent WITHOUT order:');
+      print('  Amount: $amount $currency');
+      print('  Restaurant ID: $restaurantId');
+      print('  Table ID: $tableId');
+      print('  Items: ${items.length}');
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/payments/intent-without-order'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': amount,
+          'currency': currency,
+          'restaurantId': restaurantId,
+          'tableId': tableId,
+          'items': items,
+        }),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Le serveur ne répond pas. Vérifiez votre connexion.');
+        },
+      );
+
+      if (kDebugMode) {
+        print('[Stripe] Response status: ${response.statusCode}');
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final secret = data['clientSecret'] as String?;
+        
+        if (kDebugMode) {
+          print('[Stripe] PaymentIntent created successfully');
+          if (secret != null && secret.length > 20) {
+            print('  Client Secret: ${secret.substring(0, 20)}...');
+          }
+        }
+        
+        if (secret == null || secret.isEmpty) {
+          throw Exception('clientSecret manquant dans la réponse');
+        }
+        return secret;
+      } else {
+        if (kDebugMode) {
+          print('[Stripe] Error response: ${response.body}');
+        }
+        final errorMessage = _getErrorMessage(response.statusCode, response.body);
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('[Stripe] Exception: $e');
+      }
+      rethrow;
+    }
+  }
+
   /// Présente la feuille de paiement Stripe (web uniquement)
   /// Affiche un dialog avec le Payment Element de Stripe.js
   Future<PaymentResult> presentPaymentSheet({

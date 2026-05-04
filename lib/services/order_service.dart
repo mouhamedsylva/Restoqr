@@ -2,13 +2,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:flutter/foundation.dart';
 import '../config/api_config.dart';
 import '../models/order.dart';
 import '../models/cart_item.dart';
 
 class OrderService {
   final Map<String, StreamController<OrderStatus>> _statusControllers = {};
-  IO.Socket? _socket;
+  final Map<String, IO.Socket> _sockets = {};
+  final Map<String, Timer> _reconnectTimers = {};
 
   /// Crée une nouvelle commande sur le backend
   Future<Order> createOrder({
@@ -19,10 +21,12 @@ class OrderService {
     String? customerName,
     String? note,
   }) async {
-    print('🔵 Creating order...');
-    print('   Restaurant ID: $restaurantId');
-    print('   Table ID: $tableNumber');
-    print('   Items count: ${cartItems.length}');
+    if (kDebugMode) {
+      print('🔵 Creating order...');
+      print('   Restaurant ID: $restaurantId');
+      print('   Table ID: $tableNumber');
+      print('   Items count: ${cartItems.length}');
+    }
     
     final requestBody = {
       'restaurantId': restaurantId,
@@ -44,7 +48,9 @@ class OrderService {
       requestBody['note'] = note;
     }
     
-    print('📤 Request body: ${jsonEncode(requestBody)}');
+    if (kDebugMode) {
+      print('📤 Request body: ${jsonEncode(requestBody)}');
+    }
     
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/orders'),
@@ -52,15 +58,21 @@ class OrderService {
       body: jsonEncode(requestBody),
     );
 
-    print('📥 Response status: ${response.statusCode}');
-    print('📥 Response body: ${response.body}');
+    if (kDebugMode) {
+      print('📥 Response status: ${response.statusCode}');
+      print('📥 Response body: ${response.body}');
+    }
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      print('✅ Order created successfully');
+      if (kDebugMode) {
+        print('✅ Order created successfully');
+      }
       return Order.fromJson(json);
     } else {
-      print('❌ Error creating order: ${response.body}');
+      if (kDebugMode) {
+        print('❌ Error creating order: ${response.body}');
+      }
       throw Exception('Erreur lors de la création de commande: ${response.body}');
     }
   }
@@ -73,10 +85,7 @@ class OrderService {
 
     final controller = StreamController<OrderStatus>.broadcast(
       onListen: () => _initSocket(orderId),
-      onCancel: () {
-        _socket?.disconnect();
-        _statusControllers.remove(orderId);
-      },
+      onCancel: () => _cleanupSocket(orderId),
     );
     
     _statusControllers[orderId] = controller;
@@ -86,51 +95,172 @@ class OrderService {
       if (order != null && !controller.isClosed) {
         controller.add(order.status);
       }
+    }).catchError((error) {
+      if (kDebugMode) {
+        print('❌ Error fetching initial order status: $error');
+      }
     });
 
     return controller.stream;
   }
 
   void _initSocket(String orderId) {
-    if (_socket != null && _socket!.connected) return;
+    if (_sockets.containsKey(orderId) && _sockets[orderId]!.connected) {
+      if (kDebugMode) {
+        print('🔌 Socket already connected for order: $orderId');
+      }
+      return;
+    }
 
-    _socket = IO.io(ApiConfig.socketUrl, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': true,
+    if (kDebugMode) {
+      print('🔌 Initializing socket for order: $orderId');
+      print('   Socket URL: ${ApiConfig.socketUrl}');
+    }
+
+    final socket = IO.io(ApiConfig.socketUrl, 
+      IO.OptionBuilder()
+        .setTransports(['websocket'])
+        .enableAutoConnect()
+        .enableReconnection()
+        .setReconnectionAttempts(5)
+        .setReconnectionDelay(2000)
+        .setReconnectionDelayMax(10000)
+        .build()
+    );
+
+    _sockets[orderId] = socket;
+
+    socket.onConnect((_) {
+      if (kDebugMode) {
+        print('✅ Socket connected for order: $orderId');
+      }
+      // Rejoindre la room de la commande
+      socket.emit('joinOrder', orderId);
+      
+      // Annuler le timer de reconnexion s'il existe
+      _reconnectTimers[orderId]?.cancel();
+      _reconnectTimers.remove(orderId);
     });
 
-    _socket?.onConnect((_) {
-      print('Connected to Socket.io for order: $orderId');
+    socket.onConnectError((error) {
+      if (kDebugMode) {
+        print('❌ Socket connection error for order $orderId: $error');
+      }
     });
 
-    _socket?.on('orderStatusUpdated', (data) {
+    socket.onDisconnect((_) {
+      if (kDebugMode) {
+        print('⚠️ Socket disconnected for order: $orderId');
+      }
+      // Tenter une reconnexion après 3 secondes
+      _scheduleReconnect(orderId);
+    });
+
+    socket.on('orderStatusUpdated', (data) {
+      if (kDebugMode) {
+        print('📨 Received orderStatusUpdated event: $data');
+      }
+      
       if (data != null && data['orderId'] == orderId) {
         final newStatusStr = data['status'] as String;
         final newStatus = OrderStatus.fromString(newStatusStr);
-        if (_statusControllers.containsKey(orderId)) {
+        
+        if (kDebugMode) {
+          print('✅ Order status updated: $orderId -> $newStatusStr');
+        }
+        
+        if (_statusControllers.containsKey(orderId) && !_statusControllers[orderId]!.isClosed) {
           _statusControllers[orderId]!.add(newStatus);
         }
       }
     });
+
+    socket.on('joined', (data) {
+      if (kDebugMode) {
+        print('✅ Successfully joined room: ${data['room']}');
+      }
+    });
+
+    socket.connect();
+  }
+
+  void _scheduleReconnect(String orderId) {
+    // Annuler le timer existant s'il y en a un
+    _reconnectTimers[orderId]?.cancel();
+    
+    // Créer un nouveau timer pour la reconnexion
+    _reconnectTimers[orderId] = Timer(const Duration(seconds: 3), () {
+      if (_sockets.containsKey(orderId) && !_sockets[orderId]!.connected) {
+        if (kDebugMode) {
+          print('🔄 Attempting to reconnect socket for order: $orderId');
+        }
+        _sockets[orderId]!.connect();
+      }
+    });
+  }
+
+  void _cleanupSocket(String orderId) {
+    if (kDebugMode) {
+      print('🧹 Cleaning up socket for order: $orderId');
+    }
+    
+    // Annuler le timer de reconnexion
+    _reconnectTimers[orderId]?.cancel();
+    _reconnectTimers.remove(orderId);
+    
+    // Quitter la room et déconnecter le socket
+    if (_sockets.containsKey(orderId)) {
+      _sockets[orderId]!.emit('leaveOrder', orderId);
+      _sockets[orderId]!.disconnect();
+      _sockets[orderId]!.dispose();
+      _sockets.remove(orderId);
+    }
+    
+    // Fermer le controller
+    if (_statusControllers.containsKey(orderId)) {
+      _statusControllers[orderId]!.close();
+      _statusControllers.remove(orderId);
+    }
   }
 
   /// Récupère une commande par ID
   Future<Order?> getOrder(String orderId) async {
-    final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/orders/$orderId'));
-    if (response.statusCode == 200) {
-      return Order.fromJson(jsonDecode(response.body));
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/orders/$orderId'),
+      );
+      
+      if (response.statusCode == 200) {
+        return Order.fromJson(jsonDecode(response.body));
+      }
+      
+      if (kDebugMode) {
+        print('❌ Error fetching order: ${response.statusCode} - ${response.body}');
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Exception fetching order: $e');
+      }
+      return null;
     }
-    return null;
   }
 
   /// Annule une commande (uniquement expérimental ou via API si permis)
   Future<bool> cancelOrder(String orderId) async {
-    final response = await http.put(
-      Uri.parse('${ApiConfig.baseUrl}/orders/$orderId/status'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'status': 'CANCELLED'}),
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/orders/$orderId/status'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status': 'CANCELLED'}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error cancelling order: $e');
+      }
+      return false;
+    }
   }
 
   /// Met à jour les informations du client (nom et email)
@@ -145,17 +275,41 @@ class OrderService {
 
     if (body.isEmpty) return false;
 
-    final response = await http.put(
-      Uri.parse('${ApiConfig.baseUrl}/orders/$orderId/customer'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    );
-    return response.statusCode == 200;
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.baseUrl}/orders/$orderId/customer'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error updating customer info: $e');
+      }
+      return false;
+    }
   }
 
   void dispose() {
-    _socket?.disconnect();
-    _socket?.dispose();
+    if (kDebugMode) {
+      print('🧹 Disposing OrderService...');
+    }
+    
+    // Nettoyer tous les timers
+    for (final timer in _reconnectTimers.values) {
+      timer.cancel();
+    }
+    _reconnectTimers.clear();
+    
+    // Nettoyer tous les sockets
+    for (final entry in _sockets.entries) {
+      entry.value.emit('leaveOrder', entry.key);
+      entry.value.disconnect();
+      entry.value.dispose();
+    }
+    _sockets.clear();
+    
+    // Fermer tous les controllers
     for (final ctrl in _statusControllers.values) {
       ctrl.close();
     }

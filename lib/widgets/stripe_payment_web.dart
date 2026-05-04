@@ -308,18 +308,26 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
     
     return Container(
       constraints: BoxConstraints(
-        maxHeight: screenHeight * 0.85, // 85% de la hauteur de l'écran
+        maxHeight: screenHeight * 0.9, // 90% de la hauteur de l'écran
+        maxWidth: screenWidth > 600 ? 500 : screenWidth, // Largeur max sur desktop
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header fixe
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: const BoxDecoration(
+              color: _bg,
+              border: Border(
+                bottom: BorderSide(color: Color(0xFFEDE8D8), width: 1),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -342,20 +350,21 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
               ],
             ),
           ),
-          
-          const SizedBox(height: 20),
 
           // Contenu scrollable
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Payment Element
+                  // Payment Element avec hauteur flexible
                   Container(
-                    height: 550, // Hauteur augmentée pour tous les champs
+                    constraints: const BoxConstraints(
+                      minHeight: 400,
+                      maxHeight: 600,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
