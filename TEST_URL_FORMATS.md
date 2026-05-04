@@ -5,16 +5,18 @@
 ### ✅ Format Correct (Devrait Fonctionner)
 
 ```
-https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=abc123&tableId=table5
+https://cheery-daffodil-96ee1d.netlify.app/#/menu?restaurantId=abc123&tableId=table5
 ```
 
 **Décomposition:**
-- Base: `https://deluxe-florentine-f598b3.netlify.app`
+
+- Base: `https://cheery-daffodil-96ee1d.netlify.app`
 - Hash: `#`
 - Route: `/menu`
 - Query: `?restaurantId=abc123&tableId=table5`
 
 **Ce que Flutter devrait extraire:**
+
 ```dart
 {
   'restaurantId': 'abc123',
@@ -27,21 +29,27 @@ https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=abc123&tableId=
 ### ❌ Formats Incorrects (Ne Devraient PAS Fonctionner)
 
 #### 1. Path Parameters
+
 ```
-https://deluxe-florentine-f598b3.netlify.app/#/menu/abc123/table5
+https://cheery-daffodil-96ee1d.netlify.app/#/menu/abc123/table5
 ```
+
 ❌ Pas de query parameters
 
 #### 2. Sans Hash
+
 ```
-https://deluxe-florentine-f598b3.netlify.app/menu?restaurantId=abc123&tableId=table5
+https://cheery-daffodil-96ee1d.netlify.app/menu?restaurantId=abc123&tableId=table5
 ```
+
 ❌ Pas de hash (#)
 
 #### 3. Query avant Hash
+
 ```
-https://deluxe-florentine-f598b3.netlify.app?restaurantId=abc123&tableId=table5#/menu
+https://cheery-daffodil-96ee1d.netlify.app?restaurantId=abc123&tableId=table5#/menu
 ```
+
 ❌ Query parameters au mauvais endroit
 
 ---
@@ -56,8 +64,9 @@ https://deluxe-florentine-f598b3.netlify.app?restaurantId=abc123&tableId=table5#
 4. Vérifier les valeurs extraites
 
 **Logs attendus si ça fonctionne:**
+
 ```
-🔍 URL complète: https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=abc123&tableId=table5
+🔍 URL complète: https://cheery-daffodil-96ee1d.netlify.app/#/menu?restaurantId=abc123&tableId=table5
 🔍 URI fragment: /menu?restaurantId=abc123&tableId=table5
 ✓ Fragment trouvé: /menu?restaurantId=abc123&tableId=table5
 🔍 Fragment parts: [/menu, restaurantId=abc123&tableId=table5]
@@ -69,8 +78,9 @@ https://deluxe-florentine-f598b3.netlify.app?restaurantId=abc123&tableId=table5#
 ```
 
 **Logs si ça ne fonctionne pas:**
+
 ```
-🔍 URL complète: https://deluxe-florentine-f598b3.netlify.app/#/menu/abc123/table5
+🔍 URL complète: https://cheery-daffodil-96ee1d.netlify.app/#/menu/abc123/table5
 🔍 URI fragment: /menu/abc123/table5
 ✓ Fragment trouvé: /menu/abc123/table5
 🔍 Fragment parts: [/menu/abc123/table5]
@@ -95,21 +105,27 @@ https://deluxe-florentine-f598b3.netlify.app?restaurantId=abc123&tableId=table5#
 Ouvrir ces URLs directement dans le navigateur:
 
 #### Test 1: Format Correct
+
 ```
-https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=test123&tableId=table1
+https://cheery-daffodil-96ee1d.netlify.app/#/menu?restaurantId=test123&tableId=table1
 ```
+
 **Résultat attendu:** Menu s'affiche
 
 #### Test 2: Sans Paramètres
+
 ```
-https://deluxe-florentine-f598b3.netlify.app/#/menu
+https://cheery-daffodil-96ee1d.netlify.app/#/menu
 ```
+
 **Résultat attendu:** Erreur "QR Code invalide"
 
 #### Test 3: Avec un seul Paramètre
+
 ```
-https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=test123
+https://cheery-daffodil-96ee1d.netlify.app/#/menu?restaurantId=test123
 ```
+
 **Résultat attendu:** Erreur "QR Code invalide"
 
 ---
@@ -119,10 +135,11 @@ https://deluxe-florentine-f598b3.netlify.app/#/menu?restaurantId=test123
 ### Vérifier l'URL Actuelle
 
 Ouvrir la console et taper:
+
 ```javascript
-console.log('URL:', window.location.href);
-console.log('Hash:', window.location.hash);
-console.log('Fragment:', window.location.hash.substring(1));
+console.log("URL:", window.location.href);
+console.log("Hash:", window.location.hash);
+console.log("Fragment:", window.location.hash.substring(1));
 ```
 
 ---
@@ -130,6 +147,7 @@ console.log('Fragment:', window.location.hash.substring(1));
 ### Vérifier les Paramètres Extraits
 
 Dans le code Flutter, les logs de debug afficheront:
+
 ```
 🔍 URL complète: [l'URL complète]
 🔍 URI fragment: [le fragment après #]
@@ -140,12 +158,12 @@ Dans le code Flutter, les logs de debug afficheront:
 
 ## 📊 Tableau de Compatibilité
 
-| Format d'URL | Fragment | Query String | Fonctionne? |
-|--------------|----------|--------------|-------------|
-| `/#/menu?restaurantId=x&tableId=y` | `/menu?restaurantId=x&tableId=y` | `restaurantId=x&tableId=y` | ✅ OUI |
-| `/#/menu/x/y` | `/menu/x/y` | (vide) | ❌ NON |
-| `/menu?restaurantId=x&tableId=y` | (vide) | `restaurantId=x&tableId=y` | ⚠️ Fallback |
-| `?restaurantId=x&tableId=y#/menu` | `/menu` | (vide) | ❌ NON |
+| Format d'URL                       | Fragment                         | Query String               | Fonctionne? |
+| ---------------------------------- | -------------------------------- | -------------------------- | ----------- |
+| `/#/menu?restaurantId=x&tableId=y` | `/menu?restaurantId=x&tableId=y` | `restaurantId=x&tableId=y` | ✅ OUI      |
+| `/#/menu/x/y`                      | `/menu/x/y`                      | (vide)                     | ❌ NON      |
+| `/menu?restaurantId=x&tableId=y`   | (vide)                           | `restaurantId=x&tableId=y` | ⚠️ Fallback |
+| `?restaurantId=x&tableId=y#/menu`  | `/menu`                          | (vide)                     | ❌ NON      |
 
 ---
 
@@ -154,11 +172,13 @@ Dans le code Flutter, les logs de debug afficheront:
 ### Vérification 1: Format de l'URL
 
 L'URL doit être:
+
 ```
 https://[domaine]/#/menu?restaurantId=[id]&tableId=[id]
 ```
 
 **Vérifier:**
+
 - ✅ Présence du `#`
 - ✅ `/menu` après le `#`
 - ✅ `?` après `/menu`
@@ -169,6 +189,7 @@ https://[domaine]/#/menu?restaurantId=[id]&tableId=[id]
 ### Vérification 2: Logs de Debug
 
 Chercher dans la console:
+
 ```
 ❌ Fragment vide
 ❌ Pas de query string dans le fragment
@@ -233,6 +254,7 @@ Ces messages indiquent où le problème se situe.
 ## 🚀 Prochaines Étapes
 
 1. **Rebuilder le Flutter** (si modifications)
+
    ```bash
    cd qr-order-client
    flutter clean
