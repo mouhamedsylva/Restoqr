@@ -116,10 +116,10 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           'payment',
           js.JsObject.jsify({
             'layout': {
-              'type': 'accordion',
+              'type': 'tabs',
               'defaultCollapsed': false,
               'radios': false,
-              'spacedAccordionItems': true,
+              'spacedAccordionItems': false,
             },
             'defaultValues': {
               'billingDetails': {
@@ -128,12 +128,16 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
               }
             },
             'paymentMethodOrder': ['card', 'bancontact'],
+            'wallets': {
+              'applePay': 'never',
+              'googlePay': 'never',
+            },
             'fields': {
               'billingDetails': {
-                'name': 'auto',
                 'email': 'auto',
+                'name': 'auto',
                 'phone': 'never',
-                'address': 'never',
+                'address': 'auto',
               }
             },
             'terms': {
@@ -225,74 +229,144 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
   }
 
   Future<Map<String, dynamic>> _confirmPayment(dynamic stripe, dynamic elements) async {
+    final completer = Completer<Map<String, dynamic>>();
+    
     try {
       if (kDebugMode) {
         print('[Stripe] Confirming payment...');
       }
 
-      // Appeler confirmPayment
-      final resultPromise = stripe.callMethod('confirmPayment', [
-        js.JsObject.jsify({
-          'elements': elements,
-          'confirmParams': {
-            'return_url': html.window.location.href,
-          },
-          'redirect': 'if_required',
-        }),
-      ]);
-
-      // Attendre le résultat avec un timeout
-      // Note: Cette implémentation est simplifiée pour le web
-      // Le paiement est traité de manière asynchrone par Stripe.js
-      await Future.delayed(const Duration(seconds: 3));
-
-      // Vérifier si une erreur est survenue
-      // Si on est toujours sur la page, le paiement a probablement réussi
-      if (kDebugMode) {
-        print('[Stripe] Payment confirmed (assumed success)');
-      }
-
-      // Récupérer les billing details depuis le Payment Element
-      Map<String, String>? billingDetails;
-      try {
-        final value = elements.callMethod('getElement', ['payment']);
-        if (value != null) {
-          // Les billing details sont stockés dans l'élément
-          // On va les récupérer via le DOM
-          final nameInput = html.document.querySelector('input[name="name"]') as html.InputElement?;
-          final emailInput = html.document.querySelector('input[name="email"]') as html.InputElement?;
-          
-          if (nameInput != null || emailInput != null) {
-            final tempDetails = <String, String>{};
-            
-            if (nameInput != null && nameInput.value != null && nameInput.value!.isNotEmpty) {
-              tempDetails['name'] = nameInput.value!;
-            }
-            if (emailInput != null && emailInput.value != null && emailInput.value!.isNotEmpty) {
-              tempDetails['email'] = emailInput.value!;
-            }
-            
-            if (tempDetails.isNotEmpty) {
-              billingDetails = tempDetails;
-              
-              if (kDebugMode) {
-                print('[Stripe] Billing details retrieved: $billingDetails');
-              }
-            }
-          }
-        }
-      } catch (e) {
+      // Créer un callback JavaScript pour gérer le résultat
+      js.context['handleStripeResult'] = (result) {
         if (kDebugMode) {
-          print('[Stripe] Could not retrieve billing details: $e');
+          print('[Stripe] Payment result received');
+          print('[Stripe] Result: ${js.context.callMethod('JSON.stringify', [result])}');
         }
-      }
-
-      return {
-        'paymentIntent': {
-          'status': 'succeeded',
-        },
-        if (billingDetails != null) 'billingDetails': billingDetails,
+        
+        try {
+          // Convertir le résultat JS en Map Dart
+          final resultMap = _jsObjectToMap(result);
+          
+          if (resultMap['error'] != null) {
+            final error = resultMap['error'] as Map<String, dynamic>;
+            if (kDebugMode) {
+              print('[Stripe] Payment error: ${error['message']}');
+            }
+            completer.complete({
+              'error': {
+                'message': error['message'] ?? 'Erreur de paiement',
+              }
+            });
+          } else if (resultMap['paymentIntent'] != null) {
+            final paymentIntent = resultMap['paymentIntent'] as Map<String, dynamic>;
+            final status = paymentIntent['status'];
+            
+            if (kDebugMode) {
+              print('[Stripe] Payment status: $status');
+              print('[Stripe] Payment method: ${paymentIntent['payment_method']}');
+            }
+            
+            if (status == 'succeeded' || status == 'processing') {
+              // Récupérer les billing details depuis le Payment Element
+              Map<String, String>? billingDetails;
+              try {
+                final nameInput = html.document.querySelector('input[name="name"]') as html.InputElement?;
+                final emailInput = html.document.querySelector('input[name="email"]') as html.InputElement?;
+                
+                if (nameInput != null || emailInput != null) {
+                  final tempDetails = <String, String>{};
+                  
+                  if (nameInput != null && nameInput.value != null && nameInput.value!.isNotEmpty) {
+                    tempDetails['name'] = nameInput.value!;
+                  }
+                  if (emailInput != null && emailInput.value != null && emailInput.value!.isNotEmpty) {
+                    tempDetails['email'] = emailInput.value!;
+                  }
+                  
+                  if (tempDetails.isNotEmpty) {
+                    billingDetails = tempDetails;
+                    
+                    if (kDebugMode) {
+                      print('[Stripe] Billing details retrieved: $billingDetails');
+                    }
+                  }
+                }
+              } catch (e) {
+                if (kDebugMode) {
+                  print('[Stripe] Could not retrieve billing details: $e');
+                }
+              }
+              
+              completer.complete({
+                'paymentIntent': {
+                  'status': status,
+                  'payment_method': paymentIntent['payment_method'],
+                  'id': paymentIntent['id'],
+                },
+                if (billingDetails != null) 'billingDetails': billingDetails,
+              });
+            } else {
+              completer.complete({
+                'error': {
+                  'message': 'Le paiement n\'a pas abouti. Statut: $status',
+                }
+              });
+            }
+          } else {
+            completer.complete({
+              'error': {
+                'message': 'Réponse invalide de Stripe',
+              }
+            });
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('[Stripe] Error processing result: $e');
+          }
+          completer.complete({
+            'error': {
+              'message': 'Erreur lors du traitement du résultat: $e',
+            }
+          });
+        }
       };
+
+      // Appeler confirmPayment avec le callback
+      js.context.callMethod('eval', ['''
+        (async function() {
+          try {
+            const stripe = window.stripeInstance;
+            const elements = window.elementsInstance;
+            
+            const result = await stripe.confirmPayment({
+              elements: elements,
+              confirmParams: {
+                return_url: window.location.href,
+              },
+              redirect: 'if_required',
+            });
+            
+            window.handleStripeResult(result);
+          } catch (error) {
+            window.handleStripeResult({ error: { message: error.message } });
+          }
+        })();
+      ''']);
+
+      // Attendre le résultat avec un timeout de 30 secondes
+      return await completer.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          if (kDebugMode) {
+            print('[Stripe] Payment confirmation timeout');
+          }
+          return {
+            'error': {
+              'message': 'Le paiement a pris trop de temps. Veuillez réessayer.',
+            }
+          };
+        },
+      );
     } catch (e) {
       if (kDebugMode) {
         print('[Stripe] Payment confirmation error: $e');
@@ -302,6 +376,45 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           'message': e.toString(),
         }
       };
+    }
+  }
+
+  // Convertir un JsObject en Map Dart
+  Map<String, dynamic> _jsObjectToMap(dynamic jsObject) {
+    if (jsObject == null) return {};
+    
+    try {
+      final jsonString = js.context.callMethod('JSON.stringify', [jsObject]);
+      // Parse le JSON en Dart
+      final Map<String, dynamic> result = {};
+      
+      // Extraire les propriétés principales
+      if (js.context.callMethod('eval', ['typeof $jsObject.error !== "undefined"'])) {
+        final error = jsObject['error'];
+        if (error != null) {
+          result['error'] = {
+            'message': error['message']?.toString() ?? 'Erreur inconnue',
+          };
+        }
+      }
+      
+      if (js.context.callMethod('eval', ['typeof $jsObject.paymentIntent !== "undefined"'])) {
+        final pi = jsObject['paymentIntent'];
+        if (pi != null) {
+          result['paymentIntent'] = {
+            'id': pi['id']?.toString(),
+            'status': pi['status']?.toString(),
+            'payment_method': pi['payment_method']?.toString(),
+          };
+        }
+      }
+      
+      return result;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[Stripe] Error converting JS object: $e');
+      }
+      return {};
     }
   }
 

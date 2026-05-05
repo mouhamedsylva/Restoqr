@@ -1,5 +1,4 @@
 ﻿import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,24 +23,24 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
 
-  // ─── Palette claire & dorée ───────────────────────────────────────────────────
-  static const Color _bg        = Color(0xFFFFFDF7); // ivoire chaud
-  static const Color _cream     = Color(0xFFFDF6E3); // crème
-  static const Color _gold      = Color(0xFFC8901A); // or principal
-  static const Color _goldLight = Color(0xFFE8A83A); // or clair
-  static const Color _goldPale  = Color(0xFFF5DFA0); // or très pâle
-  static const Color _goldMuted = Color(0xFFD4A84B); // or moyen
-  static const Color _textDark  = Color(0xFF3D2B0E); // brun doré foncé
-  static const Color _textMid   = Color(0xFF7A5C2E); // brun doré moyen
-  static const Color _textLight = Color(0xFFB8924A); // brun doré clair
-  static const Color _divider   = Color(0xFFEDD9A3); // séparateur doré pâle
+  // ─── Palette ivoire & dorée ────────────────────────────────────────────────
+  static const Color _bg        = Color(0xFFFFFDF7);
+  static const Color _cream     = Color(0xFFFDF6E3);
+  static const Color _gold      = Color(0xFFC8901A);
+  static const Color _goldLight = Color(0xFFE8A83A);
+  static const Color _goldPale  = Color(0xFFF5DFA0);
+  static const Color _goldMuted = Color(0xFFD4A84B);
+  static const Color _textDark  = Color(0xFF3D2B0E);
+  static const Color _textMid   = Color(0xFF7A5C2E);
+  static const Color _textLight = Color(0xFFB8924A);
+  static const Color _divider   = Color(0xFFEDD9A3);
 
-  // ─── State ───────────────────────────────────────────────────────────────────
+  // ─── State ─────────────────────────────────────────────────────────────────
   Map<String, dynamic>? _restaurant;
   bool _hasError   = false;
   bool _navigating = false;
 
-  // ─── Controllers ─────────────────────────────────────────────────────────────
+  // ─── Controllers ───────────────────────────────────────────────────────────
   late AnimationController _fadeCtrl;
   late AnimationController _logoCtrl;
   late AnimationController _titleCtrl;
@@ -51,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _pulseCtrl;
   late AnimationController _floatCtrl;
 
-  // ─── Animations ──────────────────────────────────────────────────────────────
+  // ─── Animations ────────────────────────────────────────────────────────────
   late Animation<double> _fadeIn;
   late Animation<double> _logoOpacity;
   late Animation<double> _logoScale;
@@ -76,11 +75,11 @@ class _SplashScreenState extends State<SplashScreen>
     _fadeIn = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut)
         .drive(Tween(begin: 0.0, end: 1.0));
 
-    _logoCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _logoCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
     _logoOpacity = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOut)
         .drive(Tween(begin: 0.0, end: 1.0));
     _logoScale = CurvedAnimation(parent: _logoCtrl, curve: Curves.easeOutBack)
-        .drive(Tween(begin: 0.7, end: 1.0));
+        .drive(Tween(begin: 0.65, end: 1.0));
 
     _titleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _titleOpacity = CurvedAnimation(parent: _titleCtrl, curve: Curves.easeOut)
@@ -132,14 +131,13 @@ class _SplashScreenState extends State<SplashScreen>
       final info    = await service.getRestaurantInfo(widget.restaurantId);
       if (mounted) {
         setState(() => _restaurant = info);
-        // Attendre 4 secondes pour que l'utilisateur voie toute la page
         await Future.delayed(const Duration(milliseconds: 4000));
         _navigateToMenu();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _hasError = true;
+          _hasError   = true;
           _restaurant = null;
         });
       }
@@ -150,7 +148,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (_navigating || !mounted) return;
     _navigating = true;
     Navigator.of(context).pushReplacement(PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 800),
+      transitionDuration: const Duration(milliseconds: 900),
       pageBuilder: (_, __, ___) =>
           MenuScreen(restaurantId: widget.restaurantId, tableNumber: widget.tableId),
       transitionsBuilder: (_, animation, __, child) => FadeTransition(
@@ -169,7 +167,7 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  // ─── Getters ─────────────────────────────────────────────────────────────────
+  // ─── Getters ───────────────────────────────────────────────────────────────
   String  get _restaurantName => _restaurant?['name']        as String? ?? '';
   String? get _description    => _restaurant?['description'] as String?;
   String? get _address        => _restaurant?['address']     as String?;
@@ -182,7 +180,7 @@ class _SplashScreenState extends State<SplashScreen>
     return '$base$raw';
   }
 
-  // ─── BUILD ───────────────────────────────────────────────────────────────────
+  // ─── BUILD ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -199,25 +197,25 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   const Spacer(flex: 2),
                   _buildLogo(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
                   _buildOrnamentDivider(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
                   _buildTitle(),
                   const SizedBox(height: 10),
                   _buildSubtitle(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   _buildOrnamentDivider(reverse: true),
                   const Spacer(flex: 3),
-                  _buildQRCodeImage(),
-                  const SizedBox(height: 24),
+                  _buildQRCodeBox(),
+                  const SizedBox(height: 22),
                   _buildTableBadge(),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   _buildContactRow(),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 32),
                   _buildProgressBar(),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   _buildStatusLabel(),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 44),
                 ],
               ),
             ),
@@ -228,7 +226,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Fond décoratif ───────────────────────────────────────────────────────────
+  // ─── Fond décoratif ────────────────────────────────────────────────────────
   Widget _buildBackground(Size size) {
     return Stack(
       fit: StackFit.expand,
@@ -271,8 +269,8 @@ class _SplashScreenState extends State<SplashScreen>
         // Halo central subtil
         Center(
           child: Container(
-            width: size.width * 0.8,
-            height: size.width * 0.8,
+            width: size.width * 0.85,
+            height: size.width * 0.85,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
@@ -324,7 +322,7 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
-        // Motif de points haut-droite
+        // Grille de points haut-droite
         Positioned(
           top: size.height * 0.07,
           right: size.width * 0.07,
@@ -333,7 +331,7 @@ class _SplashScreenState extends State<SplashScreen>
             painter: _DotGridPainter(color: _gold.withOpacity(0.16)),
           ),
         ),
-        // Motif de points bas-gauche
+        // Grille de points bas-gauche
         Positioned(
           bottom: size.height * 0.16,
           left: size.width * 0.06,
@@ -346,7 +344,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Logo flottant ────────────────────────────────────────────────────────────
+  // ─── Logo flottant ─────────────────────────────────────────────────────────
   Widget _buildLogo() {
     return AnimatedBuilder(
       animation: Listenable.merge([_logoCtrl, _floatCtrl]),
@@ -356,43 +354,61 @@ class _SplashScreenState extends State<SplashScreen>
           offset: Offset(0, _float.value),
           child: Transform.scale(
             scale: _logoScale.value,
-            child: Container(
-              width: 112,
-              height: 112,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _cream,
-                border: Border.all(color: _gold.withOpacity(0.55), width: 2),
-                boxShadow: [
-                  BoxShadow(
-                    color: _gold.withOpacity(0.18),
-                    blurRadius: 32,
-                    spreadRadius: 4,
-                    offset: const Offset(0, 8),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Halo externe pulsant
+                Container(
+                  width: 140,
+                  height: 140,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(colors: [
+                      _goldPale.withOpacity(0.45),
+                      Colors.transparent,
+                    ]),
                   ),
-                  BoxShadow(
-                    color: _goldPale.withOpacity(0.45),
-                    blurRadius: 64,
-                    spreadRadius: 12,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    blurRadius: 0,
-                    spreadRadius: 0,
-                    offset: Offset(-2, -2),
-                  ),
-                ],
-              ),
-              child: _logoUrl != null
-                  ? ClipOval(
-                      child: CachedNetworkImage(
-                        imageUrl: _logoUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => _logoIcon(),
-                        errorWidget: (_, __, ___) => _logoIcon(),
+                ),
+                // Cercle principal
+                Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _cream,
+                    border: Border.all(color: _gold.withOpacity(0.55), width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _gold.withOpacity(0.20),
+                        blurRadius: 36,
+                        spreadRadius: 4,
+                        offset: const Offset(0, 8),
                       ),
-                    )
-                  : _logoIcon(),
+                      BoxShadow(
+                        color: _goldPale.withOpacity(0.50),
+                        blurRadius: 72,
+                        spreadRadius: 14,
+                      ),
+                      const BoxShadow(
+                        color: Colors.white,
+                        blurRadius: 0,
+                        spreadRadius: 0,
+                        offset: Offset(-2, -2),
+                      ),
+                    ],
+                  ),
+                  child: _logoUrl != null
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: _logoUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => _logoIcon(),
+                            errorWidget: (_, __, ___) => _logoIcon(),
+                          ),
+                        )
+                      : _logoIcon(),
+                ),
+              ],
             ),
           ),
         ),
@@ -404,16 +420,16 @@ class _SplashScreenState extends State<SplashScreen>
     child: Icon(Icons.restaurant_rounded, color: _gold, size: 48),
   );
 
-  // ─── Séparateur ornemental ────────────────────────────────────────────────────
+  // ─── Séparateur ornemental ─────────────────────────────────────────────────
   Widget _buildOrnamentDivider({bool reverse = false}) {
     return AnimatedBuilder(
       animation: _logoCtrl,
       builder: (_, __) => Opacity(
         opacity: _logoOpacity.value,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 40),
           child: CustomPaint(
-            size: const Size(double.infinity, 18),
+            size: const Size(double.infinity, 20),
             painter: _OrnamentDividerPainter(color: _gold, reverse: reverse),
           ),
         ),
@@ -421,7 +437,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Titre avec shimmer doré ──────────────────────────────────────────────────
+  // ─── Titre avec shimmer doré ───────────────────────────────────────────────
   Widget _buildTitle() {
     return SlideTransition(
       position: _titleSlide,
@@ -430,7 +446,7 @@ class _SplashScreenState extends State<SplashScreen>
         child: AnimatedBuilder(
           animation: _shimmer,
           builder: (_, child) {
-            final v = _shimmer.value;
+            final v  = _shimmer.value;
             final s0 = (v - 1.0).clamp(0.0, 1.0);
             final s1 = v.clamp(0.0, 1.0);
             final s2 = (v + 0.8).clamp(0.0, 1.0);
@@ -438,8 +454,13 @@ class _SplashScreenState extends State<SplashScreen>
               shaderCallback: (bounds) => LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [_gold, _goldMuted, _goldLight, _goldPale, _goldMuted, _gold],
-                stops: [s0, (s0 + s1) / 2, s1, (s1 + s2) / 2, (s1 + s2) / 2 + 0.05, s2],
+                colors: [
+                  _gold, _goldMuted, _goldLight, _goldPale, _goldMuted, _gold
+                ],
+                stops: [
+                  s0, (s0 + s1) / 2, s1,
+                  (s1 + s2) / 2, (s1 + s2) / 2 + 0.05, s2,
+                ],
               ).createShader(bounds),
               child: child!,
             );
@@ -450,10 +471,10 @@ class _SplashScreenState extends State<SplashScreen>
               _restaurantName.isEmpty ? 'Chargement…' : _restaurantName,
               textAlign: TextAlign.center,
               style: GoogleFonts.cormorantGaramond(
-                fontSize: 36,
+                fontSize: 38,
                 fontWeight: FontWeight.w600,
                 color: _gold,
-                letterSpacing: 1.8,
+                letterSpacing: 2.0,
                 height: 1.2,
               ),
             ),
@@ -463,7 +484,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Sous-titre ───────────────────────────────────────────────────────────────
+  // ─── Sous-titre ────────────────────────────────────────────────────────────
   Widget _buildSubtitle() {
     final desc = _description;
     if (desc == null || desc.isEmpty) return const SizedBox.shrink();
@@ -483,7 +504,7 @@ class _SplashScreenState extends State<SplashScreen>
               color: _textMid,
               fontStyle: FontStyle.italic,
               letterSpacing: 0.6,
-              height: 1.6,
+              height: 1.7,
             ),
           ),
         ),
@@ -491,8 +512,8 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Image QR Code ────────────────────────────────────────────────────────────
-  Widget _buildQRCodeImage() {
+  // ─── Boîte QR Code premium ─────────────────────────────────────────────────
+  Widget _buildQRCodeBox() {
     return FadeTransition(
       opacity: _footerOpacity,
       child: Center(
@@ -500,19 +521,24 @@ class _SplashScreenState extends State<SplashScreen>
           width: 180,
           height: 180,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
             color: Colors.white,
-            border: Border.all(color: _gold.withOpacity(0.3), width: 2),
+            border: Border.all(color: _gold.withOpacity(0.35), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: _gold.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: _gold.withOpacity(0.18),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
+              BoxShadow(
+                color: _goldPale.withOpacity(0.30),
+                blurRadius: 48,
+                spreadRadius: 8,
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(20),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -524,12 +550,21 @@ class _SplashScreenState extends State<SplashScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         _cream,
-                        _goldPale.withOpacity(0.3),
+                        _goldPale.withOpacity(0.28),
                       ],
                     ),
                   ),
                 ),
-                // Icône QR Code
+                // Coins décoratifs
+                Positioned(top: 10, left: 10,
+                  child: _qrCorner(false, false)),
+                Positioned(top: 10, right: 10,
+                  child: _qrCorner(true, false)),
+                Positioned(bottom: 10, left: 10,
+                  child: _qrCorner(false, true)),
+                Positioned(bottom: 10, right: 10,
+                  child: _qrCorner(true, true)),
+                // Contenu centré
                 Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -537,16 +572,16 @@ class _SplashScreenState extends State<SplashScreen>
                       Icon(
                         Icons.qr_code_2_rounded,
                         size: 80,
-                        color: _gold.withOpacity(0.8),
+                        color: _gold.withOpacity(0.85),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Text(
                         'MENU DIGITAL',
                         style: GoogleFonts.cormorantGaramond(
-                          fontSize: 13,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: _textMid,
-                          letterSpacing: 2.5,
+                          letterSpacing: 3.0,
                         ),
                       ),
                     ],
@@ -560,36 +595,43 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Badge table ──────────────────────────────────────────────────────────────
+  /// Coins décoratifs de la boîte QR
+  Widget _qrCorner(bool right, bool bottom) {
+    return CustomPaint(
+      size: const Size(16, 16),
+      painter: _CornerPainter(
+        color: _gold.withOpacity(0.5),
+        right: right,
+        bottom: bottom,
+      ),
+    );
+  }
+
+  // ─── Badge table ───────────────────────────────────────────────────────────
   Widget _buildTableBadge() {
-    // Extraire le numéro de table depuis l'ID ou utiliser un format lisible
     String tableDisplay = 'TABLE';
-    
-    // Si le tableId contient un numéro, l'extraire
-    // Sinon, utiliser les 4 premiers caractères de l'UUID
     final tableId = widget.tableId;
     final numberMatch = RegExp(r'\d+').firstMatch(tableId);
-    
     if (numberMatch != null) {
-      tableDisplay = 'TABLE ${numberMatch.group(0)}';
+      tableDisplay = 'TABLE  ${numberMatch.group(0)}';
     } else if (tableId.length >= 4) {
-      tableDisplay = 'TABLE ${tableId.substring(0, 4).toUpperCase()}';
+      tableDisplay = 'TABLE  ${tableId.substring(0, 4).toUpperCase()}';
     } else {
-      tableDisplay = 'TABLE ${tableId.toUpperCase()}';
+      tableDisplay = 'TABLE  ${tableId.toUpperCase()}';
     }
-    
+
     return FadeTransition(
       opacity: _footerOpacity,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(32),
           color: _cream,
           border: Border.all(color: _gold.withOpacity(0.45), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: _gold.withOpacity(0.12),
-              blurRadius: 16,
+              blurRadius: 18,
               offset: const Offset(0, 4),
             ),
           ],
@@ -598,7 +640,7 @@ class _SplashScreenState extends State<SplashScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.table_restaurant_rounded, color: _gold, size: 14),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Text(
               tableDisplay,
               style: GoogleFonts.cormorantGaramond(
@@ -614,7 +656,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Contact ──────────────────────────────────────────────────────────────────
+  // ─── Infos contact ─────────────────────────────────────────────────────────
   Widget _buildContactRow() {
     final items = <Widget>[];
     if (_address != null && _address!.isNotEmpty) {
@@ -656,12 +698,12 @@ class _SplashScreenState extends State<SplashScreen>
     ],
   );
 
-  // ─── Barre de progression ─────────────────────────────────────────────────────
+  // ─── Barre de progression ──────────────────────────────────────────────────
   Widget _buildProgressBar() {
     return FadeTransition(
       opacity: _footerOpacity,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 64),
+        padding: const EdgeInsets.symmetric(horizontal: 72),
         child: Stack(
           children: [
             Container(
@@ -672,8 +714,8 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: _restaurant != null ? 1.0 : 0.3),
-              duration: const Duration(milliseconds: 2000),
+              tween: Tween(begin: 0.0, end: _restaurant != null ? 1.0 : 0.35),
+              duration: const Duration(milliseconds: 2200),
               curve: Curves.easeInOut,
               builder: (_, value, __) => FractionallySizedBox(
                 widthFactor: value,
@@ -685,7 +727,10 @@ class _SplashScreenState extends State<SplashScreen>
                       colors: [_goldPale, _gold, _goldLight],
                     ),
                     boxShadow: [
-                      BoxShadow(color: _gold.withOpacity(0.4), blurRadius: 6),
+                      BoxShadow(
+                        color: _gold.withOpacity(0.45),
+                        blurRadius: 8,
+                      ),
                     ],
                   ),
                 ),
@@ -697,7 +742,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Label statut ─────────────────────────────────────────────────────────────
+  // ─── Label statut ──────────────────────────────────────────────────────────
   Widget _buildStatusLabel() {
     return FadeTransition(
       opacity: _footerOpacity,
@@ -708,13 +753,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 5, height: 5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _gold.withOpacity(0.55),
-                ),
-              ),
+              _statusDot(),
               const SizedBox(width: 10),
               Text(
                 _restaurant == null ? 'CHARGEMENT DU MENU' : 'BIENVENUE',
@@ -726,13 +765,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               const SizedBox(width: 10),
-              Container(
-                width: 5, height: 5,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _gold.withOpacity(0.55),
-                ),
-              ),
+              _statusDot(),
             ],
           ),
         ),
@@ -740,7 +773,15 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 
-  // ─── Erreur ──────────────────────────────────────────────────────────────────
+  Widget _statusDot() => Container(
+    width: 5, height: 5,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: _gold.withOpacity(0.55),
+    ),
+  );
+
+  // ─── Erreur ────────────────────────────────────────────────────────────────
   Widget _buildErrorOverlay() {
     return Container(
       color: _bg.withOpacity(0.97),
@@ -757,7 +798,10 @@ class _SplashScreenState extends State<SplashScreen>
                   color: _cream,
                   border: Border.all(color: _gold.withOpacity(0.5), width: 1.5),
                   boxShadow: [
-                    BoxShadow(color: _gold.withOpacity(0.15), blurRadius: 20),
+                    BoxShadow(
+                      color: _gold.withOpacity(0.15),
+                      blurRadius: 24,
+                    ),
                   ],
                 ),
                 child: Icon(Icons.wifi_off_rounded, color: _gold, size: 30),
@@ -767,7 +811,7 @@ class _SplashScreenState extends State<SplashScreen>
                 'Connexion impossible',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.cormorantGaramond(
-                  fontSize: 24,
+                  fontSize: 26,
                   fontWeight: FontWeight.w600,
                   color: _textDark,
                   letterSpacing: 0.5,
@@ -793,13 +837,13 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(32),
                     color: _cream,
                     border: Border.all(color: _gold.withOpacity(0.6), width: 1.5),
                     boxShadow: [
                       BoxShadow(
                         color: _gold.withOpacity(0.15),
-                        blurRadius: 16,
+                        blurRadius: 18,
                         offset: const Offset(0, 4),
                       ),
                     ],
@@ -823,9 +867,9 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ─── Custom Painters ─────────────────────────────────────────────────────────
+// ─── Custom Painters ──────────────────────────────────────────────────────────
 
-/// Séparateur ornemental avec losange et points
+/// Séparateur ornemental avec losange central et lignes dégradées
 class _OrnamentDividerPainter extends CustomPainter {
   final Color color;
   final bool  reverse;
@@ -850,28 +894,32 @@ class _OrnamentDividerPainter extends CustomPainter {
     canvas.drawLine(Offset(cx + 14, cy), Offset(size.width, cy), lp);
 
     // Losange central
-    lp.shader = null;
-    lp.color = color.withOpacity(0.85);
-    lp.strokeWidth = 1.2;
+    lp.shader  = null;
+    lp.color   = color.withOpacity(0.85);
+    lp.strokeWidth = 1.3;
     const d = 7.0;
     final diamond = Path()
-      ..moveTo(cx, cy - d)
+      ..moveTo(cx,     cy - d)
       ..lineTo(cx + d, cy)
-      ..lineTo(cx, cy + d)
+      ..lineTo(cx,     cy + d)
       ..lineTo(cx - d, cy)
       ..close();
     canvas.drawPath(diamond, lp);
 
     // Point central
-    canvas.drawCircle(Offset(cx, cy), 2.0,
-        Paint()..color = color..style = PaintingStyle.fill);
+    canvas.drawCircle(
+      Offset(cx, cy), 2.0,
+      Paint()..color = color..style = PaintingStyle.fill,
+    );
 
     // Petits points latéraux
-    final dotPaint = Paint()..color = color.withOpacity(0.45)..style = PaintingStyle.fill;
+    final dotPaint = Paint()
+      ..color = color.withOpacity(0.45)
+      ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(cx - 22, cy), 1.5, dotPaint);
     canvas.drawCircle(Offset(cx + 22, cy), 1.5, dotPaint);
-    canvas.drawCircle(Offset(cx - 32, cy), 1.0, dotPaint);
-    canvas.drawCircle(Offset(cx + 32, cy), 1.0, dotPaint);
+    canvas.drawCircle(Offset(cx - 34, cy), 1.0, dotPaint);
+    canvas.drawCircle(Offset(cx + 34, cy), 1.0, dotPaint);
   }
 
   @override
@@ -889,7 +937,7 @@ class _DotGridPainter extends CustomPainter {
     final paint = Paint()..color = color..style = PaintingStyle.fill;
     const spacing = 14.0;
     const radius  = 1.5;
-    for (double x = 0; x <= size.width; x += spacing) {
+    for (double x = 0; x <= size.width;  x += spacing) {
       for (double y = 0; y <= size.height; y += spacing) {
         canvas.drawCircle(Offset(x, y), radius, paint);
       }
@@ -898,4 +946,50 @@ class _DotGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DotGridPainter old) => old.color != color;
+}
+
+/// Coins décoratifs de la boîte QR
+class _CornerPainter extends CustomPainter {
+  final Color color;
+  final bool  right;
+  final bool  bottom;
+  const _CornerPainter({
+    required this.color,
+    required this.right,
+    required this.bottom,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    final w = size.width;
+    final h = size.height;
+
+    if (!right && !bottom) {
+      // haut-gauche
+      canvas.drawLine(Offset(w, 0), Offset(0, 0), paint);
+      canvas.drawLine(Offset(0, 0), Offset(0, h), paint);
+    } else if (right && !bottom) {
+      // haut-droite
+      canvas.drawLine(Offset(0, 0), Offset(w, 0), paint);
+      canvas.drawLine(Offset(w, 0), Offset(w, h), paint);
+    } else if (!right && bottom) {
+      // bas-gauche
+      canvas.drawLine(Offset(0, 0), Offset(0, h), paint);
+      canvas.drawLine(Offset(0, h), Offset(w, h), paint);
+    } else {
+      // bas-droite
+      canvas.drawLine(Offset(w, 0), Offset(w, h), paint);
+      canvas.drawLine(Offset(0, h), Offset(w, h), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CornerPainter old) =>
+      old.color != color || old.right != right || old.bottom != bottom;
 }
