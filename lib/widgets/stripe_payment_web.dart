@@ -41,11 +41,20 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
   bool _isProcessing = false;
   String? _errorMessage;
   final String _viewId = 'stripe-payment-element-${DateTime.now().millisecondsSinceEpoch}';
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _initializeStripeElement();
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _nameController.dispose();
+    super.dispose();
   }
 
   void _initializeStripeElement() {
@@ -111,7 +120,7 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           })
         ]);
 
-        // Créer le Payment Element avec options
+        // Créer le Payment Element avec options (sans Link)
         final paymentElement = elements.callMethod('create', [
           'payment',
           js.JsObject.jsify({
@@ -121,21 +130,18 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
               'radios': false,
               'spacedAccordionItems': false,
             },
-            'defaultValues': {
-              'billingDetails': {
-                'name': '',
-                'email': '',
-              }
-            },
             'paymentMethodOrder': ['card', 'bancontact'],
             'wallets': {
               'applePay': 'never',
               'googlePay': 'never',
             },
+            'link': {
+              'enabled': false,
+            },
             'fields': {
               'billingDetails': {
-                'email': 'auto',
-                'name': 'auto',
+                'email': 'never',
+                'name': 'never',
                 'phone': 'never',
                 'address': 'auto',
               }
@@ -172,8 +178,34 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
   Future<void> _handleSubmit() async {
     if (_isProcessing) return;
 
+    // Validation des champs
+    if (_emailController.text.trim().isEmpty) {
+      setState(() {
+        _errorMessage = 'Veuillez entrer votre email';
+      });
+      return;
+    }
+
+    if (_nameController.text.trim().isEmpty) {
+      setState(() {
+        _errorMessage = 'Veuillez entrer votre nom complet';
+      });
+      return;
+    }
+
+    // Validation basique de l'email
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+      setState(() {
+        _errorMessage = 'Veuillez entrer un email valide';
+      });
+      return;
+    }
+
     if (kDebugMode) {
       print('[Stripe] Starting payment submission');
+      print('[Stripe] Email: ${_emailController.text.trim()}');
+      print('[Stripe] Name: ${_nameController.text.trim()}');
     }
 
     setState(() {
@@ -211,8 +243,16 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
           print('[Stripe] Payment successful');
         }
         
-        // Récupérer les billing details s'ils existent
-        final billingDetails = result['billingDetails'] as Map<String, String>?;
+        // Utiliser les billing details des champs personnalisés
+        final billingDetails = <String, String>{
+          'email': _emailController.text.trim(),
+          'name': _nameController.text.trim(),
+        };
+        
+        if (kDebugMode) {
+          print('[Stripe] Billing details: $billingDetails');
+        }
+        
         widget.onSuccess(billingDetails);
       }
     } catch (e) {
@@ -267,43 +307,12 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
             }
             
             if (status == 'succeeded' || status == 'processing') {
-              // Récupérer les billing details depuis le Payment Element
-              Map<String, String>? billingDetails;
-              try {
-                final nameInput = html.document.querySelector('input[name="name"]') as html.InputElement?;
-                final emailInput = html.document.querySelector('input[name="email"]') as html.InputElement?;
-                
-                if (nameInput != null || emailInput != null) {
-                  final tempDetails = <String, String>{};
-                  
-                  if (nameInput != null && nameInput.value != null && nameInput.value!.isNotEmpty) {
-                    tempDetails['name'] = nameInput.value!;
-                  }
-                  if (emailInput != null && emailInput.value != null && emailInput.value!.isNotEmpty) {
-                    tempDetails['email'] = emailInput.value!;
-                  }
-                  
-                  if (tempDetails.isNotEmpty) {
-                    billingDetails = tempDetails;
-                    
-                    if (kDebugMode) {
-                      print('[Stripe] Billing details retrieved: $billingDetails');
-                    }
-                  }
-                }
-              } catch (e) {
-                if (kDebugMode) {
-                  print('[Stripe] Could not retrieve billing details: $e');
-                }
-              }
-              
               completer.complete({
                 'paymentIntent': {
                   'status': status,
                   'payment_method': paymentIntent['payment_method'],
                   'id': paymentIntent['id'],
                 },
-                if (billingDetails != null) 'billingDetails': billingDetails,
               });
             } else {
               completer.complete({
@@ -331,7 +340,11 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
         }
       };
 
-      // Appeler confirmPayment avec le callback
+      // Récupérer les billing details depuis les contrôleurs
+      final email = _emailController.text.trim();
+      final name = _nameController.text.trim();
+
+      // Appeler confirmPayment avec le callback et les billing details
       js.context.callMethod('eval', ['''
         (async function() {
           try {
@@ -342,6 +355,12 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
               elements: elements,
               confirmParams: {
                 return_url: window.location.href,
+                payment_method_data: {
+                  billing_details: {
+                    email: "$email",
+                    name: "$name",
+                  }
+                }
               },
               redirect: 'if_required',
             });
@@ -432,7 +451,7 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header fixe
+          // Header fixe avec bouton de fermeture
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             decoration: const BoxDecoration(
@@ -441,24 +460,38 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
                 bottom: BorderSide(color: Color(0xFFEDE8D8), width: 1),
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  'Informations de paiement',
-                  style: GoogleFonts.playfairDisplay(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: _textPrimary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Informations de paiement',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Entrez vos informations de paiement',
+                        style: GoogleFonts.lora(
+                          fontSize: 13,
+                          color: _textSecond,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Entrez vos informations de paiement',
-                  style: GoogleFonts.lora(
-                    fontSize: 13,
-                    color: _textSecond,
-                  ),
+                IconButton(
+                  onPressed: _isProcessing ? null : widget.onCancel,
+                  icon: const Icon(Icons.close_rounded),
+                  color: _textSecond,
+                  iconSize: 24,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
@@ -472,6 +505,100 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Champ Email
+                  Text(
+                    'Email',
+                    style: GoogleFonts.lora(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    enabled: !_isProcessing,
+                    decoration: InputDecoration(
+                      hintText: 'votre@email.com',
+                      hintStyle: GoogleFonts.lora(
+                        fontSize: 14,
+                        color: _textSecond.withOpacity(0.5),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEDE8D8)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEDE8D8)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _amber, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: GoogleFonts.lora(
+                      fontSize: 14,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Champ Nom complet
+                  Text(
+                    'Nom complet',
+                    style: GoogleFonts.lora(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nameController,
+                    keyboardType: TextInputType.name,
+                    enabled: !_isProcessing,
+                    decoration: InputDecoration(
+                      hintText: 'Jean Dupont',
+                      hintStyle: GoogleFonts.lora(
+                        fontSize: 14,
+                        color: _textSecond.withOpacity(0.5),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEDE8D8)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFEDE8D8)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _amber, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                    ),
+                    style: GoogleFonts.lora(
+                      fontSize: 14,
+                      color: _textPrimary,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
                   // Payment Element avec hauteur flexible
                   Container(
                     constraints: const BoxConstraints(
