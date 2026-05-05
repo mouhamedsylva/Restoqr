@@ -444,8 +444,8 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
     
     return Container(
       constraints: BoxConstraints(
-        maxHeight: screenHeight * 0.9, // 90% de la hauteur de l'écran
-        maxWidth: screenWidth > 600 ? 500 : screenWidth, // Largeur max sur desktop
+        maxHeight: screenHeight * 0.85, // Réduit à 85% pour plus d'espace
+        maxWidth: screenWidth > 600 ? 500 : screenWidth,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -497,11 +497,11 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
             ),
           ),
 
-          // Contenu scrollable
+          // Contenu scrollable avec ClampingScrollPhysics pour mobile
           Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              physics: const AlwaysScrollableScrollPhysics(),
+              physics: const ClampingScrollPhysics(), // Meilleur pour mobile
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -599,11 +599,11 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
 
                   const SizedBox(height: 20),
 
-                  // Payment Element avec hauteur flexible
+                  // Payment Element avec hauteur réduite et scrollable
                   Container(
                     constraints: const BoxConstraints(
-                      minHeight: 400,
-                      maxHeight: 600,
+                      minHeight: 300,
+                      maxHeight: 400,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -613,6 +613,37 @@ class _StripePaymentWebState extends State<StripePaymentWeb> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: HtmlElementView(viewType: _viewId),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Info: Scroll pour voir le bouton
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFFE082)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.info_outline_rounded,
+                          color: Color(0xFFF57C00),
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Faites défiler vers le bas pour voir le bouton de paiement',
+                            style: GoogleFonts.lora(
+                              fontSize: 12,
+                              color: const Color(0xFFF57C00),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
