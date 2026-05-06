@@ -133,9 +133,15 @@ class OrderService {
     socket.onConnect((_) {
       if (kDebugMode) {
         print('✅ Socket connected for order: $orderId');
+        print('   - Socket ID: ${socket.id}');
+        print('   - Socket URL: ${ApiConfig.socketUrl}');
       }
       // Rejoindre la room de la commande
       socket.emit('joinOrder', orderId);
+      
+      if (kDebugMode) {
+        print('📤 Emitted joinOrder for: $orderId');
+      }
       
       // Annuler le timer de reconnexion s'il existe
       _reconnectTimers[orderId]?.cancel();
@@ -157,20 +163,54 @@ class OrderService {
     });
 
     socket.on('orderStatusUpdated', (data) {
-      if (kDebugMode) {
-        print('📨 Received orderStatusUpdated event: $data');
-      }
-      
-      if (data != null && data['orderId'] == orderId) {
-        final newStatusStr = data['status'] as String;
-        final newStatus = OrderStatus.fromString(newStatusStr);
-        
+      try {
         if (kDebugMode) {
-          print('✅ Order status updated: $orderId -> $newStatusStr');
+          print('📨 [WebSocket] Received orderStatusUpdated event');
+          print('   - Raw data: $data');
+          print('   - Data type: ${data.runtimeType}');
         }
         
-        if (_statusControllers.containsKey(orderId) && !_statusControllers[orderId]!.isClosed) {
-          _statusControllers[orderId]!.add(newStatus);
+        if (data == null) {
+          if (kDebugMode) {
+            print('⚠️ Received null data');
+          }
+          return;
+        }
+        
+        // Convertir en Map si nécessaire
+        final Map<String, dynamic> eventData = data is Map<String, dynamic> 
+            ? data 
+            : Map<String, dynamic>.from(data);
+        
+        final receivedOrderId = eventData['orderId'] as String?;
+        final receivedStatus = eventData['status'] as String?;
+        
+        if (kDebugMode) {
+          print('   - Received orderId: $receivedOrderId');
+          print('   - Expected orderId: $orderId');
+          print('   - Received status: $receivedStatus');
+          print('   - Match: ${receivedOrderId == orderId}');
+        }
+        
+        if (receivedOrderId == orderId && receivedStatus != null) {
+          final newStatus = OrderStatus.fromString(receivedStatus);
+          
+          if (kDebugMode) {
+            print('✅ Order status updated: $orderId -> $receivedStatus');
+          }
+          
+          if (_statusControllers.containsKey(orderId) && !_statusControllers[orderId]!.isClosed) {
+            _statusControllers[orderId]!.add(newStatus);
+          }
+        } else {
+          if (kDebugMode) {
+            print('⚠️ Event ignored: orderId mismatch or missing status');
+          }
+        }
+      } catch (e, stackTrace) {
+        if (kDebugMode) {
+          print('❌ Error processing orderStatusUpdated event: $e');
+          print('   Stack trace: $stackTrace');
         }
       }
     });
@@ -178,6 +218,7 @@ class OrderService {
     socket.on('joined', (data) {
       if (kDebugMode) {
         print('✅ Successfully joined room: ${data['room']}');
+        print('   - Expected: order_$orderId');
       }
     });
 
