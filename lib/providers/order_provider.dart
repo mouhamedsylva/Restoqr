@@ -59,6 +59,24 @@ class OrderProvider extends ChangeNotifier {
     });
   }
 
+  /// Récupère le statut actuel d'une commande via HTTP (pour le polling)
+  Future<OrderStatus?> getOrderStatus(String orderId) async {
+    try {
+      final order = await _orderService.getOrder(orderId);
+      if (order != null) {
+        _currentStatus = order.status;
+        notifyListeners();
+        return order.status;
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) {
+        print('[OrderProvider] Failed to get order status: $e');
+      }
+      return null;
+    }
+  }
+
   /// Met à jour les informations du client (nom et email)
   Future<bool> updateCustomerInfo(
     String orderId, {

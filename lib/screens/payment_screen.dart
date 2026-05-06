@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -54,6 +55,11 @@ class _PaymentScreenState extends State<PaymentScreen>
   bool _isProcessing = false;
   bool _showSuccess  = false;
   String? _errorMsg;
+  
+  // Clé pour contrôler le modal de succès
+  bool _successModalOpen = false;
+  StreamSubscription<OrderStatus>? _orderStatusSubscription;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
@@ -87,6 +93,8 @@ class _PaymentScreenState extends State<PaymentScreen>
   @override
   void dispose() {
     _successCtrl.dispose();
+    _orderStatusSubscription?.cancel();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -166,11 +174,14 @@ class _PaymentScreenState extends State<PaymentScreen>
     if (kDebugMode) {
       print('[PaymentScreen] Opening Stripe payment dialog');
     }
+    
+    // Capturer le context du State (stable) avant d'ouvrir le dialog
+    final screenContext = context;
 
     showDialog(
-      context: context,
+      context: screenContext,
       barrierDismissible: false,
-      builder: (context) {
+      builder: (dialogContext) {
         if (kDebugMode) {
           print('[PaymentScreen] Dialog builder called');
         }
@@ -193,14 +204,16 @@ class _PaymentScreenState extends State<PaymentScreen>
                   print('[PaymentScreen] Billing details: $billingDetails');
                 }
                 
-                Navigator.pop(context); // Fermer le dialog Stripe
+                // Fermer le dialog Stripe avec le context du dialog
+                Navigator.of(dialogContext).pop();
                 
-                // Afficher le modal de succès
+                // Afficher le modal de succès (utilise screenContext)
                 _showSuccessModal();
                 
                 // Maintenant créer la commande après paiement réussi
                 try {
-                  final orderProvider = context.read<OrderProvider>();
+                  // Utiliser screenContext pour accéder aux providers
+                  final orderProvider = screenContext.read<OrderProvider>();
                   final order = await orderProvider.submitOrder(
                     restaurantId: widget.restaurantId,
                     tableNumber: widget.tableNumber,
@@ -208,8 +221,10 @@ class _PaymentScreenState extends State<PaymentScreen>
                   );
                   
                   if (order == null) {
-                    Navigator.pop(context); // Fermer le modal de succès
-                    AppFeedback.showError(context, 'Erreur lors de la création de la commande');
+                    if (_successModalOpen) {
+                      Navigator.of(screenContext, rootNavigator: true).pop();
+                    }
+                    AppFeedback.showError(screenContext, 'Erreur lors de la création de la commande');
                     return;
                   }
                   
@@ -237,7 +252,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                   
                   // Vider le panier
                   HapticFeedback.heavyImpact();
-                  context.read<CartProvider>().clearCart();
+                  screenContext.read<CartProvider>().clearCart();
                   
                   // Sauvegarder la commande active et nettoyer le paiement en cours
                   await OrderPersistenceService.saveActiveOrder(
@@ -256,26 +271,28 @@ class _PaymentScreenState extends State<PaymentScreen>
                   if (kDebugMode) {
                     print('[PaymentScreen] Error creating order: $e');
                   }
-                  Navigator.pop(context); // Fermer le modal de succès
+                  if (_successModalOpen) {
+                    Navigator.of(screenContext, rootNavigator: true).pop();
+                  }
                   await OrderPersistenceService.setPaymentInProgress(false);
-                  AppFeedback.showError(context, 'Paiement réussi mais erreur lors de la création de la commande');
+                  AppFeedback.showError(screenContext, 'Paiement réussi mais erreur lors de la création de la commande');
                 }
               },
               onError: (error) {
                 if (kDebugMode) {
                   print('[PaymentScreen] Payment error: $error');
                 }
-                Navigator.pop(context); // Fermer le dialog
+                Navigator.of(dialogContext).pop();
                 OrderPersistenceService.setPaymentInProgress(false);
-                AppFeedback.showError(context, error);
+                AppFeedback.showError(screenContext, error);
               },
               onCancel: () {
                 if (kDebugMode) {
                   print('[PaymentScreen] Payment cancelled');
                 }
-                Navigator.pop(context); // Fermer le dialog
+                Navigator.of(dialogContext).pop();
                 OrderPersistenceService.setPaymentInProgress(false);
-                AppFeedback.showInfo(context, 'Paiement annulé.');
+                AppFeedback.showInfo(screenContext, 'Paiement annulé.');
               },
             ),
           ),
@@ -285,10 +302,11 @@ class _PaymentScreenState extends State<PaymentScreen>
   }
 
   void _showSuccessModal() {
+    _successModalOpen = true;
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
+      builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
         elevation: 0,
         child: Container(
@@ -424,7 +442,29 @@ class _PaymentScreenState extends State<PaymentScreen>
           ),
         ),
       ),
-    );
+    ).then((_) {
+      // Le dialog a été fermé
+      _successModalOpen = false;
+    });
+  }
+
+  /// Ferme le modal de succès s'il est ouvert, puis navigue vers le suivi
+  void _closeSuccessAndNavigate(String orderId) {
+    if (!mounted) return;
+    
+    // Annuler le polling et la subscription
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _orderStatusSubscription?.cancel();
+    _orderStatusSubscription = null;
+    
+    if (_successModalOpen) {
+      // Fermer le dialog de succès (le dernier dialog ouvert)
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+    
+    // Naviguer vers l'écran de suivi
+    _navigateToStatus(orderId);
   }
 
   void _navigateToStatus(String orderId) {
@@ -448,37 +488,77 @@ class _PaymentScreenState extends State<PaymentScreen>
 
   // Écouter le changement de statut de la commande
   void _listenForOrderAcceptance(String orderId) {
-    final orderProvider = context.read<OrderProvider>();
-    final statusStream = orderProvider.watchStatus(orderId);
+    if (kDebugMode) {
+      print('[PaymentScreen] Starting to listen for order acceptance: $orderId');
+    }
     
-    statusStream.listen((status) {
+    final orderProvider = context.read<OrderProvider>();
+    
+    // ── 1. Écoute WebSocket (temps réel) ──────────────────────────────────────
+    _orderStatusSubscription?.cancel();
+    _orderStatusSubscription = orderProvider.watchStatus(orderId).listen((status) {
       if (kDebugMode) {
-        print('[PaymentScreen] Order status changed: $status');
+        print('[PaymentScreen] WebSocket status received: $status');
       }
-      
-      // Si la commande passe à PREPARING (acceptée), rediriger immédiatement
-      if (status == OrderStatus.preparing || 
-          status == OrderStatus.ready || 
-          status == OrderStatus.completed) {
-        if (mounted) {
+      _handleStatusChange(orderId, status);
+    }, onError: (e) {
+      if (kDebugMode) {
+        print('[PaymentScreen] WebSocket error: $e');
+      }
+    });
+    
+    // ── 2. Polling HTTP de fallback (toutes les 3s) ───────────────────────────
+    // Au cas où le WebSocket rate l'événement (connexion lente, timing, etc.)
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (!mounted) {
+        _pollingTimer?.cancel();
+        return;
+      }
+      try {
+        // Récupérer le statut directement via HTTP
+        final order = await orderProvider.getOrderStatus(orderId);
+        if (order != null) {
           if (kDebugMode) {
-            print('[PaymentScreen] Order accepted! Redirecting to status screen...');
+            print('[PaymentScreen] Polling HTTP status: $order');
           }
-          Navigator.pop(context); // Fermer le modal de succès
-          _navigateToStatus(orderId);
+          _handleStatusChange(orderId, order);
         }
-      }
-      // Si la commande est annulée, afficher un message
-      else if (status == OrderStatus.cancelled) {
-        if (mounted) {
-          Navigator.pop(context); // Fermer le modal de succès
-          AppFeedback.showError(
-            context, 
-            'Votre commande a été refusée par le restaurant.\nVeuillez contacter le personnel.'
-          );
+      } catch (e) {
+        if (kDebugMode) {
+          print('[PaymentScreen] Polling error: $e');
         }
       }
     });
+  }
+  
+  void _handleStatusChange(String orderId, OrderStatus status) {
+    if (!mounted) return;
+    
+    if (kDebugMode) {
+      print('[PaymentScreen] Handling status change: $status');
+    }
+    
+    if (status == OrderStatus.preparing ||
+        status == OrderStatus.ready ||
+        status == OrderStatus.completed) {
+      if (kDebugMode) {
+        print('[PaymentScreen] Order accepted! Redirecting to status screen...');
+      }
+      _closeSuccessAndNavigate(orderId);
+    } else if (status == OrderStatus.cancelled) {
+      // Annuler les timers
+      _pollingTimer?.cancel();
+      _orderStatusSubscription?.cancel();
+      
+      if (_successModalOpen) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+      AppFeedback.showError(
+        context,
+        'Votre commande a été refusée par le restaurant.\nVeuillez contacter le personnel.',
+      );
+    }
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────────
