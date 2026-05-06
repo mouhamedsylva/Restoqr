@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../models/cart_item.dart';
+import '../models/order.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import '../services/stripe_service.dart';
@@ -247,12 +248,9 @@ class _PaymentScreenState extends State<PaymentScreen>
                   await OrderPersistenceService.clearPendingOrder();
                   await OrderPersistenceService.setPaymentInProgress(false);
                   
-                  // Attendre 2 secondes puis rediriger
-                  await Future.delayed(const Duration(milliseconds: 2000));
-                  
+                  // Écouter le changement de statut et rediriger immédiatement si accepté
                   if (mounted) {
-                    Navigator.pop(context); // Fermer le modal de succès
-                    _navigateToStatus(order.id);
+                    _listenForOrderAcceptance(order.id);
                   }
                 } catch (e) {
                   if (kDebugMode) {
@@ -362,7 +360,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               
               // Message
               Text(
-                'Votre commande est en cours de préparation',
+                'Votre commande est en attente de confirmation.\nMerci de patienter.',
                 style: GoogleFonts.lora(
                   fontSize: 14,
                   color: _textSecond,
@@ -446,6 +444,41 @@ class _PaymentScreenState extends State<PaymentScreen>
       ),
       (route) => false,
     );
+  }
+
+  // Écouter le changement de statut de la commande
+  void _listenForOrderAcceptance(String orderId) {
+    final orderProvider = context.read<OrderProvider>();
+    final statusStream = orderProvider.watchStatus(orderId);
+    
+    statusStream.listen((status) {
+      if (kDebugMode) {
+        print('[PaymentScreen] Order status changed: $status');
+      }
+      
+      // Si la commande passe à PREPARING (acceptée), rediriger immédiatement
+      if (status == OrderStatus.preparing || 
+          status == OrderStatus.ready || 
+          status == OrderStatus.completed) {
+        if (mounted) {
+          if (kDebugMode) {
+            print('[PaymentScreen] Order accepted! Redirecting to status screen...');
+          }
+          Navigator.pop(context); // Fermer le modal de succès
+          _navigateToStatus(orderId);
+        }
+      }
+      // Si la commande est annulée, afficher un message
+      else if (status == OrderStatus.cancelled) {
+        if (mounted) {
+          Navigator.pop(context); // Fermer le modal de succès
+          AppFeedback.showError(
+            context, 
+            'Votre commande a été refusée par le restaurant.\nVeuillez contacter le personnel.'
+          );
+        }
+      }
+    });
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────────
