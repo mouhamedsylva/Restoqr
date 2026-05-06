@@ -11,15 +11,15 @@ import '../providers/cart_provider.dart';
 import '../utils/app_feedback.dart';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
-const _amber        = Color(0xFFC8901A);
-const _amberLight   = Color(0xFFE8A83A);
-const _bg           = Color(0xFFFFFDF7);
-const _surface      = Color(0xFFFFFFFF);
-const _surfaceVar   = Color(0xFFFDF6E8);
-const _textPrimary  = Color(0xFF1A1714);
-const _textSecondary= Color(0xFF6B6350);
-const _textLight    = Color(0xFFA89F85);
-const _divider      = Color(0xFFEDE8D8);
+const _primaryOrange = Color(0xFFD2691E);
+const _lightOrange   = Color(0xFFFFF5EE);
+const _bg            = Color(0xFFFAFAFA);
+const _surface       = Color(0xFFFFFFFF);
+const _surfaceVar    = Color(0xFFF5F5F5);
+const _textPrimary   = Color(0xFF2C2C2C);
+const _textSecondary = Color(0xFF6B6350);
+const _textLight     = Color(0xFF8E8E8E);
+const _divider       = Color(0xFFE0E0E0);
 
 // ── Option model ──────────────────────────────────────────────────────────────
 class _ItemOption {
@@ -175,8 +175,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                   _buildDivider(),
                   if (p.description.isNotEmpty) _buildDescription(p),
                   if (p.tags.isNotEmpty) _buildTags(p),
-                  if (p.allergens.isNotEmpty) _buildAllergens(p),
-                  _buildNutrition(p),
+                  _buildAllergensAndNutrition(p),
                   if (!_loadingOptions && _options.isNotEmpty) _buildOptions(),
                   _buildQuantitySelector(),
                   _buildNoteField(),
@@ -214,13 +213,13 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                 child: Center(
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(_amber.withOpacity(0.5)),
+                    valueColor: AlwaysStoppedAnimation<Color>(_primaryOrange.withOpacity(0.5)),
                   ),
                 ),
               ),
               errorWidget: (_, __, ___) => Container(
                 color: _surfaceVar,
-                child: const Icon(Icons.restaurant, color: _amber, size: 64),
+                child: const Icon(Icons.restaurant, color: _primaryOrange, size: 64),
               ),
             ),
           ),
@@ -261,7 +260,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: _amber,
+                color: _primaryOrange,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -316,7 +315,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
             style: GoogleFonts.playfairDisplay(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: _amber,
+              color: _primaryOrange,
             ),
           ),
         ],
@@ -352,11 +351,11 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: isSpecial
-                  ? _amber.withOpacity(0.12)
+                  ? _primaryOrange.withOpacity(0.12)
                   : _surfaceVar,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSpecial ? _amber.withOpacity(0.4) : _divider,
+                color: isSpecial ? _primaryOrange.withOpacity(0.4) : _divider,
               ),
             ),
             child: Text(
@@ -364,7 +363,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
               style: GoogleFonts.lora(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
-                color: isSpecial ? _amber : _textSecondary,
+                color: isSpecial ? _primaryOrange : _textSecondary,
               ),
             ),
           );
@@ -373,14 +372,70 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
     );
   }
 
-  // ── Allergènes ──────────────────────────────────────────────────────────────
+  // ── Allergènes et Nutrition (alignés horizontalement) ───────────────────────
+  Widget _buildAllergensAndNutrition(Product p) {
+    final hasAllergens = p.allergens.isNotEmpty;
+    final hasPreparationTime = p.preparationTime != null;
+    
+    if (!hasAllergens && !hasPreparationTime) {
+      return const SizedBox.shrink();
+    }
+    
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Allergènes (à gauche)
+          if (hasAllergens)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel('Allergènes', Icons.warning_amber_outlined),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: p.allergens.map((a) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3E0),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFFFCC80)),
+                      ),
+                      child: Text(a,
+                          style: GoogleFonts.lora(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFE65100),
+                          )),
+                    )).toList(),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Espacement entre les deux sections
+          if (hasAllergens && hasPreparationTime)
+            const SizedBox(width: 16),
+          
+          // Durée de préparation (à droite)
+          if (hasPreparationTime)
+            _infoChip(Icons.timer_outlined, '${p.preparationTime} min', 'Préparation'),
+        ],
+      ),
+    );
+  }
+
+  // ── Allergènes (ancienne version - à supprimer) ─────────────────────────────
   Widget _buildAllergens(Product p) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionLabel('Allergènes', Icons.warning_amber_rounded),
+          _sectionLabel('Allergènes', Icons.warning_amber_outlined),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -405,7 +460,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
     );
   }
 
-  // ── Nutrition (temps de prépa) ───────────────────────────────────────────────
+  // ── Nutrition (ancienne version - à supprimer) ──────────────────────────────
   Widget _buildNutrition(Product p) {
     if (p.preparationTime == null) return const SizedBox.shrink();
     return Padding(
@@ -429,7 +484,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: _amber),
+          Icon(icon, size: 16, color: _primaryOrange),
           const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,11 +528,11 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                     horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: selected
-                      ? _amber.withOpacity(0.08)
+                      ? _primaryOrange.withOpacity(0.08)
                       : _surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: selected ? _amber : _divider,
+                    color: selected ? _primaryOrange : _divider,
                     width: selected ? 1.5 : 1,
                   ),
                 ),
@@ -488,9 +543,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                       width: 20, height: 20,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: selected ? _amber : Colors.transparent,
+                        color: selected ? _primaryOrange : Colors.transparent,
                         border: Border.all(
-                          color: selected ? _amber : _textLight,
+                          color: selected ? _primaryOrange : _textLight,
                           width: 1.5,
                         ),
                       ),
@@ -513,7 +568,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                           style: GoogleFonts.lora(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
-                            color: _amber,
+                            color: _primaryOrange,
                           )),
                   ],
                 ),
@@ -593,7 +648,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                         style: GoogleFonts.playfairDisplay(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
-                          color: _amber,
+                          color: _primaryOrange,
                         ),
                       ),
                     ),
@@ -621,11 +676,11 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: _showNoteField
-                    ? _amber.withOpacity(0.08)
+                    ? _primaryOrange.withOpacity(0.08)
                     : _surfaceVar,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: _showNoteField ? _amber.withOpacity(0.4) : _divider,
+                  color: _showNoteField ? _primaryOrange.withOpacity(0.4) : _divider,
                   width: 1,
                 ),
               ),
@@ -634,7 +689,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                   Icon(
                     Icons.edit_note_rounded,
                     size: 18,
-                    color: _showNoteField ? _amber : _textSecondary,
+                    color: _showNoteField ? _primaryOrange : _textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -707,7 +762,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide:
-                              const BorderSide(color: _amber, width: 1.5),
+                              const BorderSide(color: _primaryOrange, width: 1.5),
                         ),
                         counterStyle: TextStyle(
                           fontSize: 11,
@@ -762,14 +817,14 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
               height: 54,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [_amberLight, _amber],
+                  colors: [_lightOrange, _primaryOrange],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: [
                   BoxShadow(
-                    color: _amber.withOpacity(0.35),
+                    color: _primaryOrange.withOpacity(0.35),
                     blurRadius: 14,
                     offset: const Offset(0, 5),
                   ),
@@ -825,7 +880,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
 
   Widget _sectionLabel(String text, IconData icon) => Row(
         children: [
-          Icon(icon, size: 15, color: _amber),
+          Icon(icon, size: 15, color: _primaryOrange),
           const SizedBox(width: 6),
           Text(text,
               style: GoogleFonts.lora(
@@ -862,7 +917,7 @@ class _QtyCircleBtn extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: filled
-              ? (enabled ? _amber : _amber.withOpacity(0.4))
+              ? (enabled ? _primaryOrange : _primaryOrange.withOpacity(0.4))
               : _surfaceVar,
           border: filled
               ? null
@@ -872,7 +927,7 @@ class _QtyCircleBtn extends StatelessWidget {
           boxShadow: filled && enabled
               ? [
                   BoxShadow(
-                    color: _amber.withOpacity(0.3),
+                    color: _primaryOrange.withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 3),
                   )

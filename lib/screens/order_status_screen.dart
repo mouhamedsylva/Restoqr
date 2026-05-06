@@ -6,9 +6,18 @@ import '../models/order.dart';
 import '../providers/order_provider.dart';
 import '../services/notification_service.dart';
 import '../services/order_persistence_service.dart';
-import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'menu_screen.dart';
+
+// Palette de couleurs moderne
+const _primaryOrange = Color(0xFFD2691E);
+const _lightOrange = Color(0xFFFFF5EE);
+const _darkText = Color(0xFF2C2C2C);
+const _lightText = Color(0xFF8E8E8E);
+const _background = Color(0xFFFAFAFA);
+const _white = Color(0xFFFFFFFF);
+const _success = Color(0xFF22C55E);
+const _error = Color(0xFFEF4444);
 
 class OrderStatusScreen extends StatefulWidget {
   final String orderId;
@@ -30,51 +39,41 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     with TickerProviderStateMixin {
   late StreamSubscription<OrderStatus> _statusSubscription;
   late AnimationController _pulseController;
-  late AnimationController _progressController;
-  late AnimationController _stepController;
+  late AnimationController _fadeController;
   late Animation<double> _pulseAnim;
-  late Animation<double> _progressAnim;
+  late Animation<double> _fadeAnim;
 
   OrderStatus _status = OrderStatus.pending;
   bool _isStreamActive = true;
+  bool _showDetails = false;
   NotificationService? _notificationService;
-
-  final Map<OrderStatus, String> _estimatedTime = {
-    OrderStatus.pending: '~15 min',
-    OrderStatus.preparing: '~10 min',
-    OrderStatus.ready: 'Maintenant',
-    OrderStatus.completed: 'Finalisée',
-    OrderStatus.cancelled: '-',
-  };
 
   @override
   void initState() {
     super.initState();
 
+    // Animation de pulsation pour l'image
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000),
     )..repeat(reverse: true);
 
-    _progressController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-
-    _stepController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-
-    _pulseAnim = Tween<double>(begin: 0.98, end: 1.02).animate(
+    _pulseAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    _progressAnim = Tween<double>(begin: 0.0, end: _statusToProgress(OrderStatus.pending)).animate(
-      CurvedAnimation(parent: _progressController, curve: AppTheme.defaultCurve),
+    // Animation de fade pour les transitions
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
     );
 
-    _progressController.forward();
+    _fadeAnim = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    );
+
+    _fadeController.forward();
     _startStatusStream();
   }
 
@@ -90,7 +89,6 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       setState(() => _isStreamActive = false);
     });
 
-    // Démarrer le service de notifications
     _notificationService = NotificationService();
     _notificationService!.startListening(statusStream, context);
   }
@@ -98,45 +96,26 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   void _onStatusChanged(OrderStatus newStatus) {
     if (newStatus == _status) return;
 
-    setState(() => _status = newStatus);
+    // Animation de transition
+    _fadeController.reverse().then((_) {
+      if (!mounted) return;
+      setState(() => _status = newStatus);
+      _fadeController.forward();
+    });
     
-    // Nettoyer la session si la commande est terminée ou annulée
+    // Nettoyer la session si terminée ou annulée
     if (newStatus == OrderStatus.completed || newStatus == OrderStatus.cancelled) {
       OrderPersistenceService.clearActiveOrder();
-    }
-
-    final targetProgress = _statusToProgress(newStatus);
-    _progressAnim = Tween<double>(
-      begin: _progressAnim.value,
-      end: targetProgress,
-    ).animate(CurvedAnimation(
-        parent: _progressController, curve: AppTheme.defaultCurve));
-
-    _progressController
-      ..reset()
-      ..forward();
-
-    _stepController
-      ..reset()
-      ..forward();
-
-    if (newStatus == OrderStatus.ready || newStatus == OrderStatus.completed || newStatus == OrderStatus.cancelled) {
       _pulseController.stop();
       _pulseController.animateTo(1.0);
     }
   }
 
-  double _statusToProgress(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 0.15;
-      case OrderStatus.preparing:
-        return 0.55;
-      case OrderStatus.ready:
-      case OrderStatus.completed:
-        return 1.0;
-      case OrderStatus.cancelled:
-        return 0.0;
+  Future<void> _refreshStatus() async {
+    final orderProvider = context.read<OrderProvider>();
+    final status = await orderProvider.getOrderStatus(widget.orderId);
+    if (status != null && mounted) {
+      _onStatusChanged(status);
     }
   }
 
@@ -145,50 +124,80 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     _statusSubscription.cancel();
     _notificationService?.stopListening();
     _pulseController.dispose();
-    _progressController.dispose();
-    _stepController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: _background,
       appBar: AppBar(
-        title: const Text('SUIVI DE COMMANDE'),
-        centerTitle: true,
+        backgroundColor: _white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
+          icon: Icon(Icons.arrow_back, color: _darkText),
           onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Commande #${widget.orderId.substring(0, 8).toUpperCase()}',
+          style: TextStyle(
+            color: _lightText,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         actions: [
           if (_isStreamActive)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: 8),
               child: _buildLiveIndicator(),
             ),
+          IconButton(
+            icon: Icon(Icons.restaurant, color: _primaryOrange),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MenuScreen(
+                    restaurantId: widget.restaurantId,
+                    tableNumber: widget.tableNumber,
+                  ),
+                ),
+                (route) => false,
+              );
+            },
+          ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-        child: Column(
-          children: [
-            _buildOrderInfoBar(),
-            const SizedBox(height: 24),
-            _buildStatusCard(),
-            const SizedBox(height: 32),
-            _buildProgressBar(),
-            const SizedBox(height: 32),
-            _buildStepsTimeline(),
-            const SizedBox(height: 32),
-            _buildInfoGrid(),
-            if (_status == OrderStatus.ready || _status == OrderStatus.completed || _status == OrderStatus.cancelled) ...[
-              const SizedBox(height: 40),
-              _buildActionButtons(),
-            ],
-            const SizedBox(height: 40),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _refreshStatus,
+        color: _primaryOrange,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: FadeTransition(
+            opacity: _fadeAnim,
+            child: Column(
+              children: [
+                const SizedBox(height: 32),
+                _buildStatusImage(),
+                const SizedBox(height: 32),
+                _buildStatusTitle(),
+                const SizedBox(height: 8),
+                _buildStatusDescription(),
+                const SizedBox(height: 48),
+                _buildTimeline(),
+                const SizedBox(height: 32),
+                _buildDetailsSection(),
+                // Afficher le bouton "Nouvelle commande" uniquement si terminée ou annulée
+                if (_status == OrderStatus.completed || _status == OrderStatus.cancelled) ...[
+                  const SizedBox(height: 24),
+                  _buildActionButtons(),
+                ],
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -198,7 +207,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: AppTheme.success.withOpacity(0.1),
+        color: _success.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -207,172 +216,155 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
           Container(
             width: 6,
             height: 6,
-            decoration: const BoxDecoration(color: AppTheme.success, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: _success,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 6),
           const Text(
             'LIVE',
-            style: TextStyle(color: AppTheme.success, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
+            style: TextStyle(
+              color: _success,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildOrderInfoBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'RÉFÉRENCE: ',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLight, letterSpacing: 1),
-          ),
-          Text(
-            '#${widget.orderId.substring(0, 8).toUpperCase()}',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: AppTheme.textPrimary, letterSpacing: 1),
-          ),
-          const SizedBox(width: 16),
-          Container(width: 1, height: 12, color: AppTheme.divider),
-          const SizedBox(width: 16),
-          Text(
-            TimeOfDay.now().format(context),
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLight),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStatusImage() {
+    final shouldPulse = _status != OrderStatus.completed && 
+                        _status != OrderStatus.cancelled &&
+                        _status != OrderStatus.ready;
 
-  Widget _buildStatusCard() {
     return AnimatedBuilder(
-      animation: _pulseAnim,
-      builder: (_, child) => Transform.scale(
-        scale: (_status != OrderStatus.ready && _status != OrderStatus.completed && _status != OrderStatus.cancelled) ? _pulseAnim.value : 1.0,
-        child: child,
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          gradient: _getStatusGradient(),
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: _getStatusColor().withOpacity(0.2),
-              blurRadius: 30,
-              offset: const Offset(0, 15),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.2)),
-              ),
-              child: Center(
-                child: Text(_getStatusEmoji(), style: const TextStyle(fontSize: 40)),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              _status.label.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _getStatusDescription(),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 14,
-                height: 1.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressBar() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'PROGRESSION',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2),
-            ),
-            AnimatedBuilder(
-              animation: _progressAnim,
-              builder: (_, __) => Text(
-                '${(_progressAnim.value * 100).round()}%',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: _getStatusColor()),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Container(
-          height: 8,
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceVariant,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: AnimatedBuilder(
-            animation: _progressAnim,
-            builder: (_, __) => FractionallySizedBox(
-              widthFactor: _progressAnim.value.clamp(0.0, 1.0),
-              alignment: Alignment.centerLeft,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [_getStatusColor(), _getStatusColor().withOpacity(0.6)]),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(color: _getStatusColor().withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 4)),
-                  ],
+      animation: shouldPulse ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
+      builder: (context, child) {
+        return Transform.scale(
+          scale: shouldPulse ? _pulseAnim.value : 1.0,
+          child: child,
+        );
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Image circulaire de fond
+          Container(
+            width: 200,
+            height: 200,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              image: DecorationImage(
+                image: NetworkImage(
+                  _getStatusImageUrl(),
                 ),
+                fit: BoxFit.cover,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _getStatusColor().withOpacity(0.3),
+                  blurRadius: 30,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+          ),
+          // Badge de statut
+          Positioned(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                color: _white,
+                borderRadius: BorderRadius.circular(25),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _getStatusIcon(),
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _getStatusLabel(),
+                    style: TextStyle(
+                      color: _getStatusColor(),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStepsTimeline() {
-    final steps = [OrderStatus.pending, OrderStatus.preparing, OrderStatus.ready];
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppTheme.premiumShadow,
+  Widget _buildStatusTitle() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Text(
+        _getMainTitle(),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: _darkText,
+        ),
       ),
+    );
+  }
+
+  Widget _buildStatusDescription() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Text(
+        _getMainDescription(),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 14,
+          color: _lightText,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeline() {
+    final steps = [
+      {'status': OrderStatus.pending, 'label': 'Reçue', 'desc': '12:45 • Cuisine informée'},
+      {'status': OrderStatus.preparing, 'label': 'En préparation', 'desc': 'Le Chef s\'occupe de vous'},
+      {'status': OrderStatus.ready, 'label': 'Prête', 'desc': 'Attente du service'},
+      {'status': OrderStatus.completed, 'label': 'Servie', 'desc': 'Bon appétit !'},
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         children: steps.asMap().entries.map((entry) {
           final index = entry.key;
           final step = entry.value;
-          final isDone = _status.step > step.step;
-          final isCurrent = _status.step == step.step;
+          final stepStatus = step['status'] as OrderStatus;
+          final isDone = _status.step > stepStatus.step;
+          final isCurrent = _status.step == stepStatus.step;
           final isLast = index == steps.length - 1;
 
-          return _buildTimelineItem(
-            step: step,
+          return _buildTimelineStep(
+            label: step['label'] as String,
+            description: step['desc'] as String,
             isDone: isDone,
             isCurrent: isCurrent,
             isLast: isLast,
@@ -382,75 +374,203 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
-  Widget _buildTimelineItem({
-    required OrderStatus step,
+  Widget _buildTimelineStep({
+    required String label,
+    required String description,
     required bool isDone,
     required bool isCurrent,
     required bool isLast,
   }) {
-    final color = isDone ? AppTheme.success : isCurrent ? _getStatusColor() : AppTheme.textLight;
+    final color = isDone
+        ? _primaryOrange
+        : isCurrent
+            ? _primaryOrange
+            : _lightText;
 
-    return IntrinsicHeight(
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Indicateur circulaire
+        Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDone || isCurrent ? _primaryOrange : _white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isDone || isCurrent ? _primaryOrange : _lightText.withOpacity(0.3),
+                  width: 2,
+                ),
+                boxShadow: isDone || isCurrent
+                    ? [
+                        BoxShadow(
+                          color: _primaryOrange.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : [],
+              ),
+              child: Center(
+                child: isDone
+                    ? const Icon(Icons.check, color: _white, size: 20)
+                    : isCurrent
+                        ? Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: _white,
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        : Icon(Icons.access_time, color: _lightText, size: 18),
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 60,
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                color: isDone ? _primaryOrange : _lightText.withOpacity(0.2),
+              ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        // Texte
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(top: 8, bottom: isLast ? 0 : 16),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AnimatedContainer(
-                  duration: AppTheme.fastAnim,
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: (isDone || isCurrent) ? color : AppTheme.surfaceVariant,
-                    shape: BoxShape.circle,
-                    boxShadow: (isDone || isCurrent) ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 8)] : null,
-                  ),
-                  child: Center(
-                    child: isDone
-                        ? const Icon(Icons.check, size: 12, color: Colors.white)
-                        : isCurrent
-                            ? Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle))
-                            : null,
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDone || isCurrent ? _darkText : _lightText,
                   ),
                 ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isDone ? AppTheme.success : AppTheme.divider,
-                        borderRadius: BorderRadius.circular(1),
-                      ),
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _lightText,
                   ),
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    step.label.toUpperCase(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailsSection() {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _showDetails = !_showDetails;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _showDetails ? _primaryOrange : _lightText.withOpacity(0.2),
+            width: _showDetails ? 2 : 1,
+          ),
+          boxShadow: _showDetails
+              ? [
+                  BoxShadow(
+                    color: _primaryOrange.withOpacity(0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.receipt_long, color: _primaryOrange, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Détails de la commande',
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w700,
-                      color: (isDone || isCurrent) ? AppTheme.textPrimary : AppTheme.textLight,
-                      letterSpacing: 0.5,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: _darkText,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getStepDescription(step),
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
-                  ),
-                ],
+                ),
+                AnimatedRotation(
+                  turns: _showDetails ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 300),
+                  child: Icon(Icons.keyboard_arrow_down, color: _lightText),
+                ),
+              ],
+            ),
+            if (_showDetails) ...[
+              const SizedBox(height: 16),
+              Divider(color: _lightText.withOpacity(0.2)),
+              const SizedBox(height: 16),
+              Consumer<OrderProvider>(
+                builder: (context, orderProvider, _) {
+                  final order = orderProvider.currentOrder;
+                  if (order == null) {
+                    return Text(
+                      'Chargement...',
+                      style: TextStyle(color: _lightText),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      _buildDetailRow('Table', widget.tableNumber),
+                      _buildDetailRow('Heure', TimeOfDay.now().format(context)),
+                      _buildDetailRow(
+                        'Total',
+                        '${order.total.toStringAsFixed(2)} €',
+                      ),
+                    ],
+                  );
+                },
               ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: _lightText,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: _darkText,
             ),
           ),
         ],
@@ -458,88 +578,46 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     );
   }
 
-  Widget _buildInfoGrid() {
-    return Row(
-      children: [
-        Expanded(
-          child: _InfoCard(
-            icon: Icons.table_bar_rounded,
-            label: 'TABLE',
-            value: widget.tableNumber,
-            color: AppTheme.primary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _InfoCard(
-            icon: Icons.timer_outlined,
-            label: 'ESTIMATION',
-            value: _estimatedTime[_status] ?? '-',
-            color: AppTheme.secondary,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildActionButtons() {
-    // Si la commande est annulée, afficher des actions spécifiques
     if (_status == OrderStatus.cancelled) {
-      return SizedBox(
-        width: double.infinity,
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _error.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _error.withOpacity(0.2)),
+        ),
         child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.error.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.error.withOpacity(0.2)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.info_outline_rounded, color: AppTheme.error),
-                      const SizedBox(width: 16),
-                      const Expanded(
-                        child: Text(
-                          'Nous sommes désolés pour ce désagrément.',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: _error, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Commande annulée',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _darkText,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Si vous aviez déjà effectué le paiement, un remboursement sera traité automatiquement sous 3 à 5 jours ouvrés sur votre moyen de paiement.',
-                    style: TextStyle(fontSize: 13, height: 1.5, color: AppTheme.textSecondary),
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Si vous aviez déjà effectué le paiement, un remboursement sera traité automatiquement sous 3 à 5 jours ouvrés.',
+              style: TextStyle(
+                fontSize: 13,
+                color: _lightText,
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 56,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  AppFeedback.showInfo(
-                    context,
-                    'Fonctionnalité de contact en cours de développement.',
-                  );
-                },
-                icon: const Icon(Icons.phone_outlined),
-                label: const Text('CONTACTER LE RESTAURANT'),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppTheme.primary, width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pushAndRemoveUntil(
@@ -553,7 +631,20 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                     (route) => false,
                   );
                 },
-                child: const Text('NOUVELLE COMMANDE'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryOrange,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'NOUVELLE COMMANDE',
+                  style: TextStyle(
+                    color: _white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -561,139 +652,130 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
       );
     }
 
-    // Pour les commandes terminées ou prêtes
-    return SizedBox(
-      width: double.infinity,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.primary.withOpacity(0.1)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline_rounded, color: AppTheme.primary),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Text(
-                    'Besoin d\'autre chose ? Vous pouvez commander à nouveau à tout moment.',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  ),
+    // Pour les commandes terminées
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 32),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MenuScreen(
+                  restaurantId: widget.restaurantId,
+                  tableNumber: widget.tableNumber,
                 ),
-              ],
+              ),
+              (route) => false,
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryOrange,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
           ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pushAndRemoveUntil(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MenuScreen(
-                      restaurantId: widget.restaurantId,
-                      tableNumber: widget.tableNumber,
-                    ),
-                  ),
-                  (route) => false,
-                );
-              },
-              child: const Text('NOUVELLE COMMANDE'),
+          child: const Text(
+            'NOUVELLE COMMANDE',
+            style: TextStyle(
+              color: _white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  String _getStatusImageUrl() {
+    switch (_status) {
+      case OrderStatus.pending:
+        return 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400&q=80';
+      case OrderStatus.preparing:
+        return 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=400&q=80';
+      case OrderStatus.ready:
+        return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&q=80';
+      case OrderStatus.completed:
+        return 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&q=80';
+      case OrderStatus.cancelled:
+        return 'https://images.unsplash.com/photo-1495195134817-aeb325a55b65?w=400&q=80';
+    }
+  }
+
+  String _getStatusIcon() {
+    switch (_status) {
+      case OrderStatus.pending:
+        return '📋';
+      case OrderStatus.preparing:
+        return '🍳';
+      case OrderStatus.ready:
+        return '✅';
+      case OrderStatus.completed:
+        return '🎉';
+      case OrderStatus.cancelled:
+        return '❌';
+    }
+  }
+
+  String _getStatusLabel() {
+    switch (_status) {
+      case OrderStatus.pending:
+        return 'EN ATTENTE';
+      case OrderStatus.preparing:
+        return 'EN PRÉPARATION';
+      case OrderStatus.ready:
+        return 'PRÊTE';
+      case OrderStatus.completed:
+        return 'SERVIE';
+      case OrderStatus.cancelled:
+        return 'ANNULÉE';
+    }
   }
 
   Color _getStatusColor() {
     switch (_status) {
-      case OrderStatus.pending: return const Color(0xFFC5A059);
-      case OrderStatus.preparing: return AppTheme.primary;
+      case OrderStatus.pending:
+        return _primaryOrange;
+      case OrderStatus.preparing:
+        return _primaryOrange;
       case OrderStatus.ready:
-      case OrderStatus.completed: return AppTheme.success;
-      case OrderStatus.cancelled: return AppTheme.error;
+        return _success;
+      case OrderStatus.completed:
+        return _success;
+      case OrderStatus.cancelled:
+        return _error;
     }
   }
 
-  LinearGradient _getStatusGradient() {
+  String _getMainTitle() {
     switch (_status) {
-      case OrderStatus.pending: return AppTheme.goldGradient;
-      case OrderStatus.preparing: return AppTheme.primaryGradient;
+      case OrderStatus.pending:
+        return 'Commande reçue';
+      case OrderStatus.preparing:
+        return 'Votre festin arrive...';
       case OrderStatus.ready:
-      case OrderStatus.completed: return const LinearGradient(colors: [Color(0xFF3E5A3E), Color(0xFF2D422D)]);
-      case OrderStatus.cancelled: return const LinearGradient(colors: [Color(0xFF9B2C2C), Color(0xFF720D0D)]);
+        return 'C\'est prêt !';
+      case OrderStatus.completed:
+        return 'Bon appétit !';
+      case OrderStatus.cancelled:
+        return 'Commande annulée';
     }
   }
 
-  String _getStatusEmoji() {
+  String _getMainDescription() {
     switch (_status) {
-      case OrderStatus.pending: return '⚖️';
-      case OrderStatus.preparing: return '🔥';
+      case OrderStatus.pending:
+        return 'Nous avons bien reçu votre commande et elle est en cours de validation.';
+      case OrderStatus.preparing:
+        return 'Le chef apporte la touche finale à votre sélection.';
       case OrderStatus.ready:
-      case OrderStatus.completed: return '✨';
-      case OrderStatus.cancelled: return '🚫';
+        return 'Votre commande est prête et sera servie dans quelques instants.';
+      case OrderStatus.completed:
+        return 'Votre commande a été servie. Profitez de votre repas !';
+      case OrderStatus.cancelled:
+        return 'Votre commande a été annulée. Contactez le restaurant pour plus d\'informations.';
     }
-  }
-
-  String _getStatusDescription() {
-    switch (_status) {
-      case OrderStatus.pending: return 'Nous avons bien reçu votre demande\net elle est en cours de validation.';
-      case OrderStatus.preparing: return 'Le Chef et sa brigade s\'occupent\nde votre commande en cuisine.';
-      case OrderStatus.ready:
-      case OrderStatus.completed: return 'Votre commande est prête à être servie.\nExcellente dégustation.';
-      case OrderStatus.cancelled: return 'Votre commande a été annulée par le restaurant.\n\nSi vous aviez déjà payé, un remboursement\nsera effectué sous 3-5 jours ouvrés.\n\nContactez le restaurant pour plus d\'informations.';
-    }
-  }
-
-  String _getStepDescription(OrderStatus step) {
-    switch (step) {
-      case OrderStatus.pending: return 'Validation par l\'établissement';
-      case OrderStatus.preparing: return 'Préparation gastronomique';
-      case OrderStatus.ready: return 'Service imminent à votre table';
-      case OrderStatus.completed: return 'Expérience finalisée';
-      case OrderStatus.cancelled: return 'Commande interrompue';
-    }
-  }
-}
-
-class _InfoCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _InfoCard({required this.icon, required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppTheme.premiumShadow,
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: AppTheme.textPrimary),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textLight, letterSpacing: 1),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -8,6 +8,17 @@ import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'payment_screen.dart';
 
+// Palette de couleurs moderne
+const _primaryOrange = Color(0xFFD2691E);
+const _lightOrange = Color(0xFFFFF5EE);
+const _darkText = Color(0xFF2C2C2C);
+const _lightText = Color(0xFF8E8E8E);
+const _background = Color(0xFFFAFAFA);
+const _white = Color(0xFFFFFFFF);
+const _surfaceVariant = Color(0xFFF5F5F5);
+const _divider = Color(0xFFE0E0E0);
+const _error = Color(0xFFEF4444);
+
 class CartScreen extends StatelessWidget {
   final String restaurantId;
   final String tableNumber;
@@ -21,18 +32,27 @@ class CartScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: _background,
       appBar: AppBar(
+        backgroundColor: _white,
+        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('VOTRE PANIER'),
+            Text(
+              'VOTRE PANIER',
+              style: TextStyle(
+                color: _darkText,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             Consumer<CartProvider>(
               builder: (_, cart, __) => Text(
                 '${cart.itemCount} ARTICLE${cart.itemCount > 1 ? 'S' : ''}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
-                  color: AppTheme.textSecondary,
+                  color: _lightText,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),
@@ -43,7 +63,7 @@ class CartScreen extends StatelessWidget {
         leading: Padding(
           padding: const EdgeInsets.only(left: 8),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+            icon: Icon(Icons.arrow_back_ios_new, size: 18, color: _darkText),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -55,10 +75,10 @@ class CartScreen extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 8),
                     child: TextButton(
                       onPressed: () => _confirmClear(context, cart),
-                      child: const Text(
+                      child: Text(
                         'VIDER',
                         style: TextStyle(
-                          color: AppTheme.error,
+                          color: _error,
                           fontWeight: FontWeight.w800,
                           fontSize: 11,
                           letterSpacing: 1,
@@ -102,34 +122,53 @@ class CartScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(32),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceVariant,
+                color: _surfaceVariant,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 Icons.shopping_bag_outlined,
                 size: 80,
-                color: AppTheme.divider,
+                color: _divider,
               ),
             ),
             const SizedBox(height: 32),
             Text(
               'Votre panier est vide',
-              style: Theme.of(context).textTheme.headlineMedium,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _darkText,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               'Explorez notre menu et ajoutez vos plats préférés pour commencer.',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppTheme.textSecondary,
-                  ),
+              style: TextStyle(
+                fontSize: 16,
+                color: _lightText,
+              ),
             ),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('RETOUR AU MENU'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primaryOrange,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  'RETOUR AU MENU',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
             ),
           ],
@@ -143,7 +182,7 @@ class CartScreen extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(
           24, 24, 24, MediaQuery.of(context).padding.bottom + 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
@@ -160,25 +199,28 @@ class CartScreen extends StatelessWidget {
             label: 'Sous-total',
             value: '${cart.subtotal.toStringAsFixed(2)} €',
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Divider(height: 1, color: _divider),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 'TOTAL',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      letterSpacing: 1.2,
-                    ),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: _darkText,
+                  letterSpacing: 1.2,
+                ),
               ),
               Text(
                 '${cart.total.toStringAsFixed(2)} €',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.primary,
+                  color: _primaryOrange,
                 ),
               ),
             ],
@@ -187,35 +229,30 @@ class CartScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             height: 60,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppTheme.floatingShadow,
+            child: ElevatedButton(
+              onPressed: () => _proceedToPayment(context, cart),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryOrange,
+                shadowColor: _primaryOrange.withOpacity(0.4),
+                elevation: 8,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
-              child: ElevatedButton(
-                onPressed: () => _proceedToPayment(context, cart),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.lock_outline_rounded, size: 20),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'COMMANDER & PAYER',
-                      style: TextStyle(
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w800,
-                      ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_outline_rounded, size: 20, color: Colors.white),
+                  const SizedBox(width: 12),
+                  const Text(
+                    'COMMANDER & PAYER',
+                    style: TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -280,7 +317,7 @@ class _PremiumCartItemWidget extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 24),
         decoration: BoxDecoration(
-          color: AppTheme.error,
+          color: _error,
           borderRadius: BorderRadius.circular(20),
         ),
         child: const Icon(Icons.delete_outline_rounded,
@@ -307,14 +344,20 @@ class _PremiumCartItemWidget extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: AppTheme.premiumShadow,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(40), // Cercle parfait
               child: SizedBox(
                 width: 80,
                 height: 80,
@@ -331,10 +374,10 @@ class _PremiumCartItemWidget extends StatelessWidget {
                 children: [
                   Text(
                     item.product.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
+                      color: _darkText,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -342,9 +385,9 @@ class _PremiumCartItemWidget extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${item.product.price.toStringAsFixed(2)} € / unité',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textLight,
+                      color: _lightText,
                     ),
                   ),
                   // ── Note de l'article ──────────────────────────────────
@@ -355,7 +398,7 @@ class _PremiumCartItemWidget extends StatelessWidget {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceVariant,
+                          color: _surfaceVariant,
                           borderRadius: BorderRadius.circular(30),
                         ),
                         child: Row(
@@ -367,8 +410,8 @@ class _PremiumCartItemWidget extends StatelessWidget {
                                     : Icons.remove_rounded,
                                 size: 18,
                                 color: item.quantity == 1
-                                    ? AppTheme.error
-                                    : AppTheme.textPrimary,
+                                    ? _error
+                                    : _darkText,
                               ),
                               onPressed: () async {
                                 if (item.quantity == 1) {
@@ -402,8 +445,8 @@ class _PremiumCartItemWidget extends StatelessWidget {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.add_rounded,
-                                  size: 18, color: AppTheme.primary),
+                              icon: Icon(Icons.add_rounded,
+                                  size: 18, color: _primaryOrange),
                               onPressed: () =>
                                   cart.addProduct(item.product),
                               padding: const EdgeInsets.all(8),
@@ -414,10 +457,10 @@ class _PremiumCartItemWidget extends StatelessWidget {
                       ),
                       Text(
                         '${item.totalPrice.toStringAsFixed(2)} €',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
-                          color: AppTheme.primary,
+                          color: _primaryOrange,
                         ),
                       ),
                     ],
@@ -490,13 +533,13 @@ class _NoteWidgetState extends State<_NoteWidget> {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: hasNote
-              ? const Color(0xFFFDF6E8)
-              : const Color(0xFFF5F0E0).withOpacity(0.5),
+              ? _lightOrange
+              : _surfaceVariant.withOpacity(0.5),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: hasNote
-                ? const Color(0xFFC8901A).withOpacity(0.3)
-                : const Color(0xFFEDE8D8),
+                ? _primaryOrange.withOpacity(0.3)
+                : _divider,
           ),
         ),
         child: Row(
@@ -505,8 +548,8 @@ class _NoteWidgetState extends State<_NoteWidget> {
               hasNote ? Icons.sticky_note_2_rounded : Icons.edit_note_rounded,
               size: 14,
               color: hasNote
-                  ? const Color(0xFFC8901A)
-                  : AppTheme.textLight,
+                  ? _primaryOrange
+                  : _lightText,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -516,7 +559,7 @@ class _NoteWidgetState extends State<_NoteWidget> {
                     : 'Ajouter une note…',
                 style: TextStyle(
                   fontSize: 11.5,
-                  color: hasNote ? AppTheme.textPrimary : AppTheme.textLight,
+                  color: hasNote ? _darkText : _lightText,
                   fontStyle:
                       hasNote ? FontStyle.normal : FontStyle.italic,
                   height: 1.3,
@@ -528,7 +571,7 @@ class _NoteWidgetState extends State<_NoteWidget> {
             Icon(
               Icons.edit_rounded,
               size: 12,
-              color: AppTheme.textLight,
+              color: _lightText,
             ),
           ],
         ),
@@ -545,32 +588,32 @@ class _NoteWidgetState extends State<_NoteWidget> {
           autofocus: true,
           maxLines: 2,
           maxLength: 150,
-          style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+          style: TextStyle(fontSize: 13, color: _darkText),
           decoration: InputDecoration(
             hintText: 'Ex: sans oignons, bien cuit…',
-            hintStyle: const TextStyle(
+            hintStyle: TextStyle(
               fontSize: 12,
-              color: AppTheme.textLight,
+              color: _lightText,
               fontStyle: FontStyle.italic,
             ),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: _white,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-                  const BorderSide(color: Color(0xFFC8901A), width: 1.5),
+                  BorderSide(color: _primaryOrange, width: 1.5),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-                  const BorderSide(color: Color(0xFFC8901A), width: 1.5),
+                  BorderSide(color: _primaryOrange, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide:
-                  const BorderSide(color: Color(0xFFC8901A), width: 1.5),
+                  BorderSide(color: _primaryOrange, width: 1.5),
             ),
             counterStyle: const TextStyle(fontSize: 10),
           ),
@@ -590,11 +633,11 @@ class _NoteWidgetState extends State<_NoteWidget> {
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
               ),
-              child: const Text(
+              child: Text(
                 'Annuler',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: _lightText,
                 ),
               ),
             ),
@@ -602,7 +645,7 @@ class _NoteWidgetState extends State<_NoteWidget> {
             ElevatedButton(
               onPressed: _save,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC8901A),
+                backgroundColor: _primaryOrange,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 minimumSize: Size.zero,
@@ -648,7 +691,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: isSecondary ? FontWeight.w400 : FontWeight.w500,
-            color: isSecondary ? AppTheme.textSecondary : AppTheme.textPrimary,
+            color: isSecondary ? _lightText : _darkText,
           ),
         ),
         Text(
@@ -656,7 +699,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: isSecondary ? AppTheme.textSecondary : AppTheme.textPrimary,
+            color: isSecondary ? _lightText : _darkText,
           ),
         ),
       ],

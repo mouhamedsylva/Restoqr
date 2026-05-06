@@ -17,14 +17,15 @@ import 'order_status_screen.dart';
 import '../widgets/stripe_payment_web.dart';
 
 // ── Palette locale ────────────────────────────────────────────────────────────
-const _amber       = Color(0xFFC8901A);
-const _amberLight  = Color(0xFFE8A83A);
-const _bg          = Color(0xFFFFFDF7);
-const _surfaceVar  = Color(0xFFFDF6E8);
-const _textPrimary = Color(0xFF1A1714);
-const _textSecond  = Color(0xFF6B6350);
-const _textLight   = Color(0xFFA89F85);
-const _divider     = Color(0xFFEDE8D8);
+const _primaryOrange = Color(0xFFD2691E);
+const _lightOrange   = Color(0xFFFFF5EE);
+const _bg            = Color(0xFFFAFAFA);
+const _white         = Color(0xFFFFFFFF);
+const _surfaceVar    = Color(0xFFF5F5F5);
+const _textPrimary   = Color(0xFF2C2C2C);
+const _textSecond    = Color(0xFF6B6350);
+const _textLight     = Color(0xFF8E8E8E);
+const _divider       = Color(0xFFE0E0E0);
 
 class PaymentScreen extends StatefulWidget {
   final String restaurantId;
@@ -60,6 +61,9 @@ class _PaymentScreenState extends State<PaymentScreen>
   bool _successModalOpen = false;
   StreamSubscription<OrderStatus>? _orderStatusSubscription;
   Timer? _pollingTimer;
+  
+  // ── Type de service ──────────────────────────────────────────────────────────
+  String _serviceType = 'sur_place'; // 'sur_place' ou 'a_emporter'
 
   @override
   void initState() {
@@ -218,6 +222,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                     restaurantId: widget.restaurantId,
                     tableNumber: widget.tableNumber,
                     cartItems: widget.cartItems,
+                    type: _serviceType == 'sur_place' ? 'DINE_IN' : 'TAKE_AWAY',
                   );
                   
                   if (order == null) {
@@ -339,13 +344,13 @@ class _PaymentScreenState extends State<PaymentScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: const LinearGradient(
-                          colors: [_amberLight, _amber],
+                          colors: [_lightOrange, _primaryOrange],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: _amber.withOpacity(0.3),
+                            color: _primaryOrange.withOpacity(0.3),
                             blurRadius: 30,
                             spreadRadius: 5,
                           ),
@@ -401,7 +406,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                   children: [
                     const Icon(
                       Icons.table_restaurant_rounded,
-                      color: _amber,
+                      color: _primaryOrange,
                       size: 16,
                     ),
                     const SizedBox(width: 8),
@@ -425,7 +430,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: _amber,
+                  color: _primaryOrange,
                 ),
               ),
               
@@ -609,84 +614,241 @@ class _PaymentScreenState extends State<PaymentScreen>
 
   // ── Résumé commande ───────────────────────────────────────────────────────────
   Widget _buildSummary() {
+    return Column(
+      children: [
+        // Section Service
+        _buildServiceSection(),
+        const SizedBox(height: 16),
+        // Résumé de la commande
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: _white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: _divider),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Icon(Icons.receipt_long_rounded, color: _primaryOrange, size: 16),
+                const SizedBox(width: 8),
+                Text('Résumé de la commande',
+                    style: GoogleFonts.lora(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _textSecond,
+                        letterSpacing: 0.3)),
+              ]),
+              const SizedBox(height: 16),
+              ...widget.cartItems.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: Row(children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: _primaryOrange.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text('${item.quantity}',
+                              style: GoogleFonts.lora(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: _primaryOrange)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(item.product.name,
+                            style: GoogleFonts.lora(
+                                fontSize: 13.5, color: _textPrimary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      Text('${item.totalPrice.toStringAsFixed(2)} €',
+                          style: GoogleFonts.lora(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _textSecond)),
+                    ]),
+                  )),
+              Divider(color: _divider, height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total',
+                      style: GoogleFonts.lora(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: _textPrimary)),
+                  Text('${widget.total.toStringAsFixed(2)} €',
+                      style: GoogleFonts.playfairDisplay(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: _primaryOrange)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Section Service ───────────────────────────────────────────────────────────
+  Widget _buildServiceSection() {
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _divider),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 4))
-        ],
-      ),
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            const Icon(Icons.receipt_long_rounded, color: _amber, size: 16),
-            const SizedBox(width: 8),
-            Text('Résumé de la commande',
-                style: GoogleFonts.lora(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: _textSecond,
-                    letterSpacing: 0.3)),
-          ]),
-          const SizedBox(height: 16),
-          ...widget.cartItems.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(children: [
-                  Container(
-                    width: 26,
-                    height: 26,
-                    decoration: BoxDecoration(
-                      color: _amber.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text('${item.quantity}',
-                          style: GoogleFonts.lora(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: _amber)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(item.product.name,
-                        style: GoogleFonts.lora(
-                            fontSize: 13.5, color: _textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                  Text('${item.totalPrice.toStringAsFixed(2)} €',
-                      style: GoogleFonts.lora(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _textSecond)),
-                ]),
-              )),
-          Divider(color: _divider, height: 24),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total',
-                  style: GoogleFonts.lora(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: _textPrimary)),
-              Text('${widget.total.toStringAsFixed(2)} €',
-                  style: GoogleFonts.playfairDisplay(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: _amber)),
+              Container(
+                width: 4,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: _primaryOrange,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Service',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildServiceOption(
+                  icon: Icons.restaurant,
+                  title: 'Sur place',
+                  subtitle: 'Table ${widget.tableNumber}',
+                  isSelected: _serviceType == 'sur_place',
+                  onTap: () => setState(() => _serviceType = 'sur_place'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildServiceOption(
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'À emporter',
+                  subtitle: 'Prêt en 15 min',
+                  isSelected: _serviceType == 'a_emporter',
+                  onTap: () => setState(() => _serviceType = 'a_emporter'),
+                ),
+              ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildServiceOption({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? _primaryOrange : _divider,
+            width: isSelected ? 2 : 1,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: _primaryOrange.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? _primaryOrange : _textLight,
+                  size: 28,
+                ),
+                if (isSelected)
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: _primaryOrange,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? _textPrimary : _textSecond,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _textLight,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -781,7 +943,7 @@ class _PaymentScreenState extends State<PaymentScreen>
           gradient: _isProcessing
               ? null
               : const LinearGradient(
-                  colors: [_amberLight, _amber],
+                  colors: [_lightOrange, _primaryOrange],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -791,7 +953,7 @@ class _PaymentScreenState extends State<PaymentScreen>
               ? null
               : [
                   BoxShadow(
-                      color: _amber.withOpacity(0.35),
+                      color: _primaryOrange.withOpacity(0.35),
                       blurRadius: 14,
                       offset: const Offset(0, 5))
                 ],
@@ -802,7 +964,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
-                      strokeWidth: 2.5, color: _amber),
+                      strokeWidth: 2.5, color: _primaryOrange),
                 )
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -863,12 +1025,12 @@ class _PaymentScreenState extends State<PaymentScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: const LinearGradient(
-                        colors: [_amberLight, _amber],
+                        colors: [_lightOrange, _primaryOrange],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight),
                     boxShadow: [
                       BoxShadow(
-                          color: _amber.withOpacity(0.3),
+                          color: _primaryOrange.withOpacity(0.3),
                           blurRadius: 40,
                           spreadRadius: 8)
                     ],
@@ -911,7 +1073,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(Icons.table_restaurant_rounded,
-                              color: _amber, size: 16),
+                              color: _primaryOrange, size: 16),
                           const SizedBox(width: 8),
                           Text('Table ${widget.tableNumber}',
                               style: GoogleFonts.lora(

@@ -30,6 +30,7 @@ class OrderProvider extends ChangeNotifier {
     required String restaurantId,
     required String tableNumber,
     required List<CartItem> cartItems,
+    String type = 'DINE_IN',
   }) async {
     _setState(OrderProviderState.loading);
 
@@ -38,6 +39,7 @@ class OrderProvider extends ChangeNotifier {
         restaurantId: restaurantId,
         tableNumber: tableNumber,
         cartItems: cartItems,
+        type: type,
       );
       _currentOrder = order;
       _currentStatus = OrderStatus.pending;
