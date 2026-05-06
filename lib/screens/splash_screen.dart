@@ -4,7 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../config/api_config.dart';
 import '../services/restaurant_service.dart';
+import '../services/order_persistence_service.dart';
 import 'menu_screen.dart';
+import 'session_recovery_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   final String restaurantId;
@@ -126,6 +128,33 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _loadRestaurant() async {
+    // Vérifier d'abord s'il y a une session à récupérer
+    final hasSession = await _checkForSession();
+    if (hasSession) {
+      // Afficher l'écran de récupération de session
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (context) => SessionRecoveryScreen(
+              onDismiss: () {
+                // Retourner au menu après avoir refusé la récupération
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => MenuScreen(
+                      restaurantId: widget.restaurantId,
+                      tableNumber: widget.tableId,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    // Pas de session, continuer normalement
     try {
       final service = RestaurantService();
       final info    = await service.getRestaurantInfo(widget.restaurantId);
@@ -142,6 +171,25 @@ class _SplashScreenState extends State<SplashScreen>
         });
       }
     }
+  }
+
+  Future<bool> _checkForSession() async {
+    // Vérifier s'il y a une commande active
+    final activeOrder = await OrderPersistenceService.getActiveOrder();
+    if (activeOrder != null) {
+      return true;
+    }
+
+    // Vérifier s'il y a un paiement en cours
+    final paymentInProgress = await OrderPersistenceService.isPaymentInProgress();
+    if (paymentInProgress) {
+      final pendingOrder = await OrderPersistenceService.getPendingOrder();
+      if (pendingOrder != null) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   void _navigateToMenu() {

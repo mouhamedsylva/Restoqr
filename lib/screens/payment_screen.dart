@@ -8,6 +8,7 @@ import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import '../services/stripe_service.dart';
+import '../services/order_persistence_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'order_status_screen.dart';
@@ -96,6 +97,27 @@ class _PaymentScreenState extends State<PaymentScreen>
     HapticFeedback.mediumImpact();
 
     try {
+      // Sauvegarder la commande en attente
+      final itemsData = widget.cartItems.map((item) => {
+        'menuItemId': item.product.id,
+        'name': item.product.name,
+        'description': item.product.description,
+        'price': item.product.price,
+        'category': item.product.category,
+        'imageUrl': item.product.imageUrl,
+        'quantity': item.quantity,
+      }).toList();
+      
+      await OrderPersistenceService.savePendingOrder(
+        restaurantId: widget.restaurantId,
+        tableNumber: widget.tableNumber,
+        cartItems: itemsData,
+        total: widget.total,
+      );
+      
+      // Marquer le paiement comme en cours
+      await OrderPersistenceService.setPaymentInProgress(true);
+      
       // 1. Créer le PaymentIntent SANS créer la commande
       // On passe les données de commande dans les metadata
       final stripeService = context.read<StripeService>();
@@ -133,6 +155,9 @@ class _PaymentScreenState extends State<PaymentScreen>
       final msg = 'Une erreur est survenue: ${e.toString()}';
       setState(() { _isProcessing = false; _errorMsg = msg; });
       AppFeedback.showError(context, msg);
+      
+      // Nettoyer en cas d'erreur
+      await OrderPersistenceService.setPaymentInProgress(false);
     }
   }
 
@@ -167,7 +192,10 @@ class _PaymentScreenState extends State<PaymentScreen>
                   print('[PaymentScreen] Billing details: $billingDetails');
                 }
                 
-                Navigator.pop(context); // Fermer le dialog
+                Navigator.pop(context); // Fermer le dialog Stripe
+                
+                // Afficher le modal de succès
+                _showSuccessModal();
                 
                 // Maintenant créer la commande après paiement réussi
                 try {
@@ -179,6 +207,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                   );
                   
                   if (order == null) {
+                    Navigator.pop(context); // Fermer le modal de succès
                     AppFeedback.showError(context, 'Erreur lors de la création de la commande');
                     return;
                   }
@@ -205,19 +234,32 @@ class _PaymentScreenState extends State<PaymentScreen>
                     }
                   }
                   
-                  // Afficher le succès
+                  // Vider le panier
                   HapticFeedback.heavyImpact();
                   context.read<CartProvider>().clearCart();
-                  setState(() { _showSuccess = true; });
-                  _successCtrl.forward().then((_) {
-                    Future.delayed(const Duration(milliseconds: 1400), () {
-                      if (mounted) _navigateToStatus(order.id);
-                    });
-                  });
+                  
+                  // Sauvegarder la commande active et nettoyer le paiement en cours
+                  await OrderPersistenceService.saveActiveOrder(
+                    orderId: order.id,
+                    restaurantId: widget.restaurantId,
+                    tableNumber: widget.tableNumber,
+                  );
+                  await OrderPersistenceService.clearPendingOrder();
+                  await OrderPersistenceService.setPaymentInProgress(false);
+                  
+                  // Attendre 2 secondes puis rediriger
+                  await Future.delayed(const Duration(milliseconds: 2000));
+                  
+                  if (mounted) {
+                    Navigator.pop(context); // Fermer le modal de succès
+                    _navigateToStatus(order.id);
+                  }
                 } catch (e) {
                   if (kDebugMode) {
                     print('[PaymentScreen] Error creating order: $e');
                   }
+                  Navigator.pop(context); // Fermer le modal de succès
+                  await OrderPersistenceService.setPaymentInProgress(false);
                   AppFeedback.showError(context, 'Paiement réussi mais erreur lors de la création de la commande');
                 }
               },
@@ -226,6 +268,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                   print('[PaymentScreen] Payment error: $error');
                 }
                 Navigator.pop(context); // Fermer le dialog
+                OrderPersistenceService.setPaymentInProgress(false);
                 AppFeedback.showError(context, error);
               },
               onCancel: () {
@@ -233,12 +276,156 @@ class _PaymentScreenState extends State<PaymentScreen>
                   print('[PaymentScreen] Payment cancelled');
                 }
                 Navigator.pop(context); // Fermer le dialog
+                OrderPersistenceService.setPaymentInProgress(false);
                 AppFeedback.showInfo(context, 'Paiement annulé.');
               },
             ),
           ),
         );
       },
+    );
+  }
+
+  void _showSuccessModal() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icône de succès animée
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.elasticOut,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [_amberLight, _amber],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _amber.withOpacity(0.3),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 60,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Titre
+              Text(
+                'Paiement réussi !',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: _textPrimary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 12),
+              
+              // Message
+              Text(
+                'Votre commande est en cours de préparation',
+                style: GoogleFonts.lora(
+                  fontSize: 14,
+                  color: _textSecond,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              
+              const SizedBox(height: 20),
+              
+              // Badge table
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _surfaceVar,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _divider),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.table_restaurant_rounded,
+                      color: _amber,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Table ${widget.tableNumber}',
+                      style: GoogleFonts.lora(
+                        fontWeight: FontWeight.w700,
+                        color: _textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Indicateur de chargement
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: _amber,
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              Text(
+                'Redirection en cours...',
+                style: GoogleFonts.lora(
+                  fontSize: 12,
+                  color: _textLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

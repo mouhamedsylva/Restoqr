@@ -6,24 +6,19 @@ import '../config/api_config.dart';
 class StripeService {
   static bool _initialized = false;
 
-  /// Initialise le SDK Stripe — à appeler une seule fois au démarrage
-  /// Application web uniquement - Stripe.js est chargé via index.html
+  /// Initialise le SDK Stripe — à appeler une seule fois au démarrage.
+  /// Sur web, Stripe.js est chargé via index.html ; aucune init Dart nécessaire.
   static Future<void> initialize() async {
     if (_initialized) return;
-    
-    // Sur web, Stripe.js est chargé via index.html
-    // Aucune initialisation nécessaire côté Dart
-    
     _initialized = true;
   }
 
-  /// Parse les erreurs du backend pour des messages plus clairs
+  /// Parse les erreurs du backend pour des messages lisibles.
   String _getErrorMessage(int statusCode, String responseBody) {
     try {
       final data = jsonDecode(responseBody);
       final message = data['message'];
-      
-      // Messages spécifiques selon le code d'erreur
+
       switch (statusCode) {
         case 400:
           if (message is List) {
@@ -43,12 +38,12 @@ class StripeService {
         default:
           return message ?? 'Erreur inattendue ($statusCode)';
       }
-    } catch (e) {
+    } catch (_) {
       return 'Erreur de communication avec le serveur';
     }
   }
 
-  /// Crée un PaymentIntent côté backend et retourne le clientSecret
+  /// Crée un PaymentIntent côté backend et retourne le clientSecret.
   Future<String> createPaymentIntent({
     required double amount,
     required String currency,
@@ -63,21 +58,22 @@ class StripeService {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/payments/intent'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'amount': amount,
-          'currency': currency,
-          'restaurantId': restaurantId,
-          'orderId': orderId,
-        }),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Le serveur ne répond pas. Vérifiez votre connexion.');
-        },
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/payments/intent'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'amount': amount,
+              'currency': currency,
+              'restaurantId': restaurantId,
+              'orderId': orderId,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception(
+                'Le serveur ne répond pas. Vérifiez votre connexion.'),
+          );
 
       if (kDebugMode) {
         print('[Stripe] Response status: ${response.statusCode}');
@@ -86,35 +82,31 @@ class StripeService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final secret = data['clientSecret'] as String?;
-        
+
         if (kDebugMode) {
           print('[Stripe] PaymentIntent created successfully');
           if (secret != null && secret.length > 20) {
             print('  Client Secret: ${secret.substring(0, 20)}...');
           }
         }
-        
+
         if (secret == null || secret.isEmpty) {
           throw Exception('clientSecret manquant dans la réponse');
         }
         return secret;
       } else {
-        if (kDebugMode) {
-          print('[Stripe] Error response: ${response.body}');
-        }
-        final errorMessage = _getErrorMessage(response.statusCode, response.body);
-        throw Exception(errorMessage);
+        if (kDebugMode) print('[Stripe] Error response: ${response.body}');
+        throw Exception(
+            _getErrorMessage(response.statusCode, response.body));
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('[Stripe] Exception: $e');
-      }
+      if (kDebugMode) print('[Stripe] Exception: $e');
       rethrow;
     }
   }
 
-  /// Crée un PaymentIntent SANS créer de commande
-  /// Les données de commande sont passées dans les metadata
+  /// Crée un PaymentIntent SANS créer de commande.
+  /// Les données de commande sont passées dans les metadata.
   Future<String> createPaymentIntentWithoutOrder({
     required double amount,
     required String currency,
@@ -131,22 +123,23 @@ class StripeService {
     }
 
     try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/payments/intent-without-order'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'amount': amount,
-          'currency': currency,
-          'restaurantId': restaurantId,
-          'tableId': tableId,
-          'items': items,
-        }),
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw Exception('Le serveur ne répond pas. Vérifiez votre connexion.');
-        },
-      );
+      final response = await http
+          .post(
+            Uri.parse('${ApiConfig.baseUrl}/payments/intent-without-order'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'amount': amount,
+              'currency': currency,
+              'restaurantId': restaurantId,
+              'tableId': tableId,
+              'items': items,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception(
+                'Le serveur ne répond pas. Vérifiez votre connexion.'),
+          );
 
       if (kDebugMode) {
         print('[Stripe] Response status: ${response.statusCode}');
@@ -155,41 +148,36 @@ class StripeService {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         final secret = data['clientSecret'] as String?;
-        
+
         if (kDebugMode) {
           print('[Stripe] PaymentIntent created successfully');
           if (secret != null && secret.length > 20) {
             print('  Client Secret: ${secret.substring(0, 20)}...');
           }
         }
-        
+
         if (secret == null || secret.isEmpty) {
           throw Exception('clientSecret manquant dans la réponse');
         }
         return secret;
       } else {
-        if (kDebugMode) {
-          print('[Stripe] Error response: ${response.body}');
-        }
-        final errorMessage = _getErrorMessage(response.statusCode, response.body);
-        throw Exception(errorMessage);
+        if (kDebugMode) print('[Stripe] Error response: ${response.body}');
+        throw Exception(
+            _getErrorMessage(response.statusCode, response.body));
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('[Stripe] Exception: $e');
-      }
+      if (kDebugMode) print('[Stripe] Exception: $e');
       rethrow;
     }
   }
 
-  /// Présente la feuille de paiement Stripe (web uniquement)
-  /// Affiche un dialog avec le Payment Element de Stripe.js
+  /// Présente la feuille de paiement Stripe (web uniquement).
+  /// Retourne un résultat indiquant que le paiement doit passer par le widget web.
   Future<PaymentResult> presentPaymentSheet({
     required String clientSecret,
     required String merchantDisplayName,
     String? customerEmail,
   }) async {
-    // Application web uniquement
     return PaymentResult(
       success: false,
       paymentIntentId: clientSecret.split('_secret_').first,
@@ -205,7 +193,7 @@ class PaymentResult {
   final String paymentIntentId;
   final String status;
   final String? errorMessage;
-  final String? clientSecret; // Pour le paiement web
+  final String? clientSecret;
 
   const PaymentResult({
     required this.success,

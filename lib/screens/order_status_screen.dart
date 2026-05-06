@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/order.dart';
 import '../providers/order_provider.dart';
 import '../services/notification_service.dart';
+import '../services/order_persistence_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'menu_screen.dart';
@@ -98,6 +99,11 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     if (newStatus == _status) return;
 
     setState(() => _status = newStatus);
+    
+    // Nettoyer la session si la commande est terminée ou annulée
+    if (newStatus == OrderStatus.completed || newStatus == OrderStatus.cancelled) {
+      OrderPersistenceService.clearActiveOrder();
+    }
 
     final targetProgress = _statusToProgress(newStatus);
     _progressAnim = Tween<double>(
