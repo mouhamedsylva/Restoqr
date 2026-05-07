@@ -61,6 +61,14 @@ class MenuService {
   List<String> _cachedCategories = [];
   List<String> _cachedBadges = [];
 
+  /// Vide le cache pour forcer un rechargement depuis l'API
+  void clearCache() {
+    _cachedProducts = [];
+    _cachedRestaurantInfo = null;
+    _cachedCategories = [];
+    _cachedBadges = [];
+  }
+
   Future<void> _fetchData(String restaurantId) async {
     final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/restaurants/$restaurantId'));
     if (response.statusCode == 200) {

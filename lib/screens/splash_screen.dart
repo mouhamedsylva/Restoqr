@@ -26,17 +26,17 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
 
-  // ─── Palette ivoire & dorée ────────────────────────────────────────────────
-  static const Color _bg        = Color(0xFFFFFDF7);
-  static const Color _cream     = Color(0xFFFDF6E3);
-  static const Color _gold      = Color(0xFFC8901A);
-  static const Color _goldLight = Color(0xFFE8A83A);
-  static const Color _goldPale  = Color(0xFFF5DFA0);
-  static const Color _goldMuted = Color(0xFFD4A84B);
-  static const Color _textDark  = Color(0xFF3D2B0E);
-  static const Color _textMid   = Color(0xFF7A5C2E);
-  static const Color _textLight = Color(0xFFB8924A);
-  static const Color _divider   = Color(0xFFEDD9A3);
+  // ─── Palette orange moderne ────────────────────────────────────────────────
+  static const Color _bg        = Color(0xFFFAFAFA);  // Fond gris clair
+  static const Color _cream     = Color(0xFFFFF5EE);  // Orange très clair
+  static const Color _primaryOrange = Color(0xFFD2691E);  // Orange principal
+  static const Color _lightOrange = Color(0xFFFFF5EE);    // Orange clair
+  static const Color _darkOrange = Color(0xFFB8571A);     // Orange foncé
+  static const Color _paleOrange = Color(0xFFFFE4D1);     // Orange pâle
+  static const Color _textDark  = Color(0xFF2C2C2C);      // Texte foncé
+  static const Color _textMid   = Color(0xFF6B6350);      // Texte moyen
+  static const Color _textLight = Color(0xFF8E8E8E);      // Texte clair
+  static const Color _divider   = Color(0xFFE0E0E0);      // Diviseur
 
   // ─── State ─────────────────────────────────────────────────────────────────
   Map<String, dynamic>? _restaurant;
@@ -304,7 +304,7 @@ class _SplashScreenState extends State<SplashScreen>
       fit: StackFit.expand,
       children: [
         Container(color: _bg),
-        // Halo doré haut-gauche
+        // Halo orange haut-gauche
         Positioned(
           top: -size.height * 0.12,
           left: -size.width * 0.2,
@@ -314,14 +314,14 @@ class _SplashScreenState extends State<SplashScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
-                _goldPale.withOpacity(0.55),
-                _goldPale.withOpacity(0.15),
+                _paleOrange.withOpacity(0.55),
+                _paleOrange.withOpacity(0.15),
                 Colors.transparent,
               ]),
             ),
           ),
         ),
-        // Halo doré bas-droite
+        // Halo orange bas-droite
         Positioned(
           bottom: -size.height * 0.1,
           right: -size.width * 0.15,
@@ -331,8 +331,8 @@ class _SplashScreenState extends State<SplashScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
-                _goldPale.withOpacity(0.45),
-                _goldPale.withOpacity(0.10),
+                _paleOrange.withOpacity(0.45),
+                _paleOrange.withOpacity(0.10),
                 Colors.transparent,
               ]),
             ),
@@ -346,7 +346,7 @@ class _SplashScreenState extends State<SplashScreen>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(colors: [
-                _goldPale.withOpacity(0.18),
+                _paleOrange.withOpacity(0.18),
                 Colors.transparent,
               ]),
             ),
@@ -365,8 +365,8 @@ class _SplashScreenState extends State<SplashScreen>
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  _gold.withOpacity(0.22),
-                  _gold.withOpacity(0.22),
+                  _primaryOrange.withOpacity(0.22),
+                  _primaryOrange.withOpacity(0.22),
                   Colors.transparent,
                 ],
               ),
@@ -386,8 +386,8 @@ class _SplashScreenState extends State<SplashScreen>
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  _gold.withOpacity(0.22),
-                  _gold.withOpacity(0.22),
+                  _primaryOrange.withOpacity(0.22),
+                  _primaryOrange.withOpacity(0.22),
                   Colors.transparent,
                 ],
               ),
@@ -400,7 +400,7 @@ class _SplashScreenState extends State<SplashScreen>
           right: size.width * 0.07,
           child: CustomPaint(
             size: const Size(56, 56),
-            painter: _DotGridPainter(color: _gold.withOpacity(0.16)),
+            painter: _DotGridPainter(color: _primaryOrange.withOpacity(0.16)),
           ),
         ),
         // Grille de points bas-gauche
@@ -409,7 +409,7 @@ class _SplashScreenState extends State<SplashScreen>
           left: size.width * 0.06,
           child: CustomPaint(
             size: const Size(56, 56),
-            painter: _DotGridPainter(color: _gold.withOpacity(0.16)),
+            painter: _DotGridPainter(color: _primaryOrange.withOpacity(0.16)),
           ),
         ),
       ],
@@ -436,7 +436,7 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(colors: [
-                      _goldPale.withOpacity(0.45),
+                      _paleOrange.withOpacity(0.45),
                       Colors.transparent,
                     ]),
                   ),
@@ -448,16 +448,16 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _cream,
-                    border: Border.all(color: _gold.withOpacity(0.55), width: 2),
+                    border: Border.all(color: _primaryOrange.withOpacity(0.55), width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: _gold.withOpacity(0.20),
+                        color: _primaryOrange.withOpacity(0.20),
                         blurRadius: 36,
                         spreadRadius: 4,
                         offset: const Offset(0, 8),
                       ),
                       BoxShadow(
-                        color: _goldPale.withOpacity(0.50),
+                        color: _paleOrange.withOpacity(0.50),
                         blurRadius: 72,
                         spreadRadius: 14,
                       ),
@@ -489,7 +489,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _logoIcon() => Center(
-    child: Icon(Icons.restaurant_rounded, color: _gold, size: 48),
+    child: Icon(Icons.restaurant_rounded, color: _primaryOrange, size: 48),
   );
 
   // ─── Séparateur ornemental ─────────────────────────────────────────────────
@@ -502,14 +502,14 @@ class _SplashScreenState extends State<SplashScreen>
           padding: const EdgeInsets.symmetric(horizontal: 40),
           child: CustomPaint(
             size: const Size(double.infinity, 20),
-            painter: _OrnamentDividerPainter(color: _gold, reverse: reverse),
+            painter: _OrnamentDividerPainter(color: _primaryOrange, reverse: reverse),
           ),
         ),
       ),
     );
   }
 
-  // ─── Titre avec shimmer doré ───────────────────────────────────────────────
+  // ─── Titre avec shimmer orange ──────────────────────────────────────────────
   Widget _buildTitle() {
     return SlideTransition(
       position: _titleSlide,
@@ -527,7 +527,7 @@ class _SplashScreenState extends State<SplashScreen>
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  _gold, _goldMuted, _goldLight, _goldPale, _goldMuted, _gold
+                  _primaryOrange, _darkOrange, _lightOrange, _paleOrange, _darkOrange, _primaryOrange
                 ],
                 stops: [
                   s0, (s0 + s1) / 2, s1,
@@ -545,7 +545,7 @@ class _SplashScreenState extends State<SplashScreen>
               style: GoogleFonts.cormorantGaramond(
                 fontSize: 38,
                 fontWeight: FontWeight.w600,
-                color: _gold,
+                color: _primaryOrange,
                 letterSpacing: 2.0,
                 height: 1.2,
               ),
@@ -595,15 +595,15 @@ class _SplashScreenState extends State<SplashScreen>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: Colors.white,
-            border: Border.all(color: _gold.withOpacity(0.35), width: 1.5),
+            border: Border.all(color: _primaryOrange.withOpacity(0.35), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: _gold.withOpacity(0.18),
+                color: _primaryOrange.withOpacity(0.18),
                 blurRadius: 28,
                 offset: const Offset(0, 10),
               ),
               BoxShadow(
-                color: _goldPale.withOpacity(0.30),
+                color: _paleOrange.withOpacity(0.30),
                 blurRadius: 48,
                 spreadRadius: 8,
               ),
@@ -622,7 +622,7 @@ class _SplashScreenState extends State<SplashScreen>
                       end: Alignment.bottomRight,
                       colors: [
                         _cream,
-                        _goldPale.withOpacity(0.28),
+                        _paleOrange.withOpacity(0.28),
                       ],
                     ),
                   ),
@@ -644,7 +644,7 @@ class _SplashScreenState extends State<SplashScreen>
                       Icon(
                         Icons.qr_code_2_rounded,
                         size: 80,
-                        color: _gold.withOpacity(0.85),
+                        color: _primaryOrange.withOpacity(0.85),
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -672,7 +672,7 @@ class _SplashScreenState extends State<SplashScreen>
     return CustomPaint(
       size: const Size(16, 16),
       painter: _CornerPainter(
-        color: _gold.withOpacity(0.5),
+        color: _primaryOrange.withOpacity(0.5),
         right: right,
         bottom: bottom,
       ),
@@ -688,10 +688,10 @@ class _SplashScreenState extends State<SplashScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(32),
           color: _cream,
-          border: Border.all(color: _gold.withOpacity(0.45), width: 1.5),
+          border: Border.all(color: _primaryOrange.withOpacity(0.45), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: _gold.withOpacity(0.12),
+              color: _primaryOrange.withOpacity(0.12),
               blurRadius: 18,
               offset: const Offset(0, 4),
             ),
@@ -700,7 +700,7 @@ class _SplashScreenState extends State<SplashScreen>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.table_restaurant_rounded, color: _gold, size: 14),
+            Icon(Icons.table_restaurant_rounded, color: _primaryOrange, size: 14),
             const SizedBox(width: 10),
             Text(
               'TABLE  $_displayTableNumber',
@@ -785,11 +785,11 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(2),
                     gradient: const LinearGradient(
-                      colors: [_goldPale, _gold, _goldLight],
+                      colors: [_paleOrange, _primaryOrange, _lightOrange],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: _gold.withOpacity(0.45),
+                        color: _primaryOrange.withOpacity(0.45),
                         blurRadius: 8,
                       ),
                     ],
@@ -838,7 +838,7 @@ class _SplashScreenState extends State<SplashScreen>
     width: 5, height: 5,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      color: _gold.withOpacity(0.55),
+      color: _primaryOrange.withOpacity(0.55),
     ),
   );
 
@@ -857,15 +857,15 @@ class _SplashScreenState extends State<SplashScreen>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: _cream,
-                  border: Border.all(color: _gold.withOpacity(0.5), width: 1.5),
+                  border: Border.all(color: _primaryOrange.withOpacity(0.5), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: _gold.withOpacity(0.15),
+                      color: _primaryOrange.withOpacity(0.15),
                       blurRadius: 24,
                     ),
                   ],
                 ),
-                child: Icon(Icons.wifi_off_rounded, color: _gold, size: 30),
+                child: Icon(Icons.wifi_off_rounded, color: _primaryOrange, size: 30),
               ),
               const SizedBox(height: 28),
               Text(
@@ -900,10 +900,10 @@ class _SplashScreenState extends State<SplashScreen>
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(32),
                     color: _cream,
-                    border: Border.all(color: _gold.withOpacity(0.6), width: 1.5),
+                    border: Border.all(color: _primaryOrange.withOpacity(0.6), width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: _gold.withOpacity(0.15),
+                        color: _primaryOrange.withOpacity(0.15),
                         blurRadius: 18,
                         offset: const Offset(0, 4),
                       ),
