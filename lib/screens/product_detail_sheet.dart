@@ -35,19 +35,20 @@ class _ItemOption {
 }
 
 // ── Public entry point ────────────────────────────────────────────────────────
-Future<void> showProductDetail(BuildContext context, Product product) {
+Future<void> showProductDetail(BuildContext context, Product product, {int initialQuantity = 1}) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => _ProductDetailSheet(product: product),
+    builder: (_) => _ProductDetailSheet(product: product, initialQuantity: initialQuantity),
   );
 }
 
 // ── Sheet widget ──────────────────────────────────────────────────────────────
 class _ProductDetailSheet extends StatefulWidget {
   final Product product;
-  const _ProductDetailSheet({required this.product});
+  final int initialQuantity;
+  const _ProductDetailSheet({required this.product, this.initialQuantity = 1});
 
   @override
   State<_ProductDetailSheet> createState() => _ProductDetailSheetState();
@@ -60,7 +61,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
   String? _selectedOptionId;
 
   // ── Quantité locale avec animation ────────────────────────────────────────
-  int _qty = 1;
+  late int _qty;
   late AnimationController _qtyAnimCtrl;
   late Animation<double> _qtyScale;
   bool _lastWasAdd = true;
@@ -72,6 +73,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet>
   @override
   void initState() {
     super.initState();
+    _qty = widget.initialQuantity; // Initialiser avec la quantité passée en paramètre
     _fetchOptions();
     _qtyAnimCtrl = AnimationController(
       vsync: this,

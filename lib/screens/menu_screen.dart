@@ -9,6 +9,7 @@ import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import '../services/menu_service.dart';
+import '../services/table_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'cart_screen.dart';
@@ -48,6 +49,7 @@ class _MenuScreenState extends State<MenuScreen> {
   String _displayTableNumber = '';
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+  final TableService _tableService = TableService();
 
   // Palette de couleurs moderne
   static const _primaryOrange = Color(0xFFD2691E);
@@ -70,6 +72,7 @@ class _MenuScreenState extends State<MenuScreen> {
       context.read<CartProvider>().setTableId(widget.tableNumber);
     });
     _loadData();
+    _loadTableInfo();
   }
 
   @override
@@ -86,7 +89,6 @@ class _MenuScreenState extends State<MenuScreen> {
       _restaurantInfo = await menuService.getRestaurantInfo(widget.restaurantId);
       _allProducts = await menuService.getMenu(widget.restaurantId);
       _categories = await menuService.getCategories(widget.restaurantId);
-      _displayTableNumber = widget.tableNumber;
       
       if (mounted) {
         setState(() => _isLoading = false);
@@ -96,6 +98,25 @@ class _MenuScreenState extends State<MenuScreen> {
         setState(() => _isLoading = false);
         AppFeedback.showError(context, 'Impossible de charger le menu.');
       }
+    }
+  }
+
+  /// Charge les informations de la table depuis l'API
+  Future<void> _loadTableInfo() async {
+    final tableInfo = await _tableService.getTableInfo(widget.tableNumber);
+    if (mounted && tableInfo != null) {
+      setState(() {
+        _displayTableNumber = _tableService.getTableNumber(tableInfo, widget.tableNumber);
+      });
+    } else if (mounted) {
+      // Fallback si l'API échoue
+      setState(() {
+        if (widget.tableNumber.length > 8 && widget.tableNumber.contains('-')) {
+          _displayTableNumber = widget.tableNumber.substring(0, 8).toUpperCase();
+        } else {
+          _displayTableNumber = widget.tableNumber;
+        }
+      });
     }
   }
 
@@ -544,9 +565,17 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 
   Widget _buildProductCard(Product product) {
-    return GestureDetector(
-      onTap: () => showProductDetail(context, product),
-      child: Container(
+    return Consumer<CartProvider>(
+      builder: (context, cart, _) {
+        final currentQty = cart.getQuantity(product.id);
+        
+        return GestureDetector(
+          onTap: () => showProductDetail(
+            context, 
+            product, 
+            initialQuantity: currentQty > 0 ? currentQty : 1,
+          ),
+          child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -795,6 +824,8 @@ class _MenuScreenState extends State<MenuScreen> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 

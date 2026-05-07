@@ -11,6 +11,7 @@ import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import '../services/stripe_service.dart';
 import '../services/order_persistence_service.dart';
+import '../services/table_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/app_feedback.dart';
 import 'order_status_screen.dart';
@@ -64,10 +65,28 @@ class _PaymentScreenState extends State<PaymentScreen>
   
   // ── Type de service ──────────────────────────────────────────────────────────
   String _serviceType = 'sur_place'; // 'sur_place' ou 'a_emporter'
+  
+  // ── Numéro de table ──────────────────────────────────────────────────────────
+  String? _displayTableNumber;
+  final TableService _tableService = TableService();
+  
+  // ── Helper pour extraire un numéro de table court ────────────────────────────
+  String get _shortTableNumber {
+    // Utiliser le numéro récupéré depuis l'API si disponible
+    if (_displayTableNumber != null) {
+      return _displayTableNumber!;
+    }
+    // Sinon, utiliser le fallback
+    if (widget.tableNumber.length <= 10 && !widget.tableNumber.contains('-')) {
+      return widget.tableNumber;
+    }
+    return widget.tableNumber.substring(0, 8).toUpperCase();
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadTableInfo();
     _successCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -100,6 +119,16 @@ class _PaymentScreenState extends State<PaymentScreen>
     _orderStatusSubscription?.cancel();
     _pollingTimer?.cancel();
     super.dispose();
+  }
+
+  /// Charge les informations de la table depuis l'API
+  Future<void> _loadTableInfo() async {
+    final tableInfo = await _tableService.getTableInfo(widget.tableNumber);
+    if (mounted && tableInfo != null) {
+      setState(() {
+        _displayTableNumber = _tableService.getTableNumber(tableInfo, widget.tableNumber);
+      });
+    }
   }
 
   // ── Flux de paiement ─────────────────────────────────────────────────────────
@@ -411,7 +440,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Table ${widget.tableNumber}',
+                      'Table $_shortTableNumber',
                       style: GoogleFonts.lora(
                         fontWeight: FontWeight.w700,
                         color: _textPrimary,
@@ -739,7 +768,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                 child: _buildServiceOption(
                   icon: Icons.restaurant,
                   title: 'Sur place',
-                  subtitle: 'Table ${widget.tableNumber}',
+                  subtitle: 'Table $_shortTableNumber',
                   isSelected: _serviceType == 'sur_place',
                   onTap: () => setState(() => _serviceType = 'sur_place'),
                 ),
@@ -1075,7 +1104,7 @@ class _PaymentScreenState extends State<PaymentScreen>
                           const Icon(Icons.table_restaurant_rounded,
                               color: _primaryOrange, size: 16),
                           const SizedBox(width: 8),
-                          Text('Table ${widget.tableNumber}',
+                          Text('Table $_shortTableNumber',
                               style: GoogleFonts.lora(
                                   fontWeight: FontWeight.w700,
                                   color: _textPrimary)),

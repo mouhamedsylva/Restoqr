@@ -6,6 +6,7 @@ import '../models/order.dart';
 import '../providers/order_provider.dart';
 import '../services/notification_service.dart';
 import '../services/order_persistence_service.dart';
+import '../services/table_service.dart';
 import '../utils/app_feedback.dart';
 import 'menu_screen.dart';
 
@@ -47,10 +48,14 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
   bool _isStreamActive = true;
   bool _showDetails = false;
   NotificationService? _notificationService;
+  String _displayTableNumber = '';
+  final TableService _tableService = TableService();
 
   @override
   void initState() {
     super.initState();
+    _displayTableNumber = widget.tableNumber;
+    _loadTableInfo();
 
     // Animation de pulsation pour l'image
     _pulseController = AnimationController(
@@ -116,6 +121,25 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
     final status = await orderProvider.getOrderStatus(widget.orderId);
     if (status != null && mounted) {
       _onStatusChanged(status);
+    }
+  }
+
+  /// Charge les informations de la table depuis l'API
+  Future<void> _loadTableInfo() async {
+    final tableInfo = await _tableService.getTableInfo(widget.tableNumber);
+    if (mounted && tableInfo != null) {
+      setState(() {
+        _displayTableNumber = _tableService.getTableNumber(tableInfo, widget.tableNumber);
+      });
+    } else if (mounted) {
+      // Fallback si l'API échoue
+      setState(() {
+        if (widget.tableNumber.length > 8 && widget.tableNumber.contains('-')) {
+          _displayTableNumber = widget.tableNumber.substring(0, 8).toUpperCase();
+        } else {
+          _displayTableNumber = widget.tableNumber;
+        }
+      });
     }
   }
 
@@ -535,7 +559,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen>
                   }
                   return Column(
                     children: [
-                      _buildDetailRow('Table', widget.tableNumber),
+                      _buildDetailRow('Table', _displayTableNumber),
                       _buildDetailRow('Heure', TimeOfDay.now().format(context)),
                       _buildDetailRow(
                         'Total',

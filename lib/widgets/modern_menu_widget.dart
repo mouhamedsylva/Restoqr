@@ -6,6 +6,7 @@ import '../main.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../screens/product_detail_sheet.dart';
+import '../services/table_service.dart';
 import '../utils/app_feedback.dart';
 
 /// Widget de menu moderne inspiré du design "Bistro de l'Europe"
@@ -45,6 +46,8 @@ class _ModernMenuWidgetState extends State<ModernMenuWidget> {
   String _selectedFilter = 'Tout';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+  String _displayTableNumber = '';
+  final TableService _tableService = TableService();
 
   // Palette de couleurs inspirée du design
   static const _primaryOrange = Color(0xFFD2691E); // Couleur orange principale
@@ -57,9 +60,35 @@ class _ModernMenuWidgetState extends State<ModernMenuWidget> {
   static const _badgeGreen = Color(0xFF4CAF50);
 
   @override
+  void initState() {
+    super.initState();
+    _displayTableNumber = widget.tableNumber;
+    _loadTableInfo();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  /// Charge les informations de la table depuis l'API
+  Future<void> _loadTableInfo() async {
+    final tableInfo = await _tableService.getTableInfo(widget.tableNumber);
+    if (mounted && tableInfo != null) {
+      setState(() {
+        _displayTableNumber = _tableService.getTableNumber(tableInfo, widget.tableNumber);
+      });
+    } else if (mounted) {
+      // Fallback si l'API échoue
+      setState(() {
+        if (widget.tableNumber.length > 8 && widget.tableNumber.contains('-')) {
+          _displayTableNumber = widget.tableNumber.substring(0, 8).toUpperCase();
+        } else {
+          _displayTableNumber = widget.tableNumber;
+        }
+      });
+    }
   }
 
   List<Product> get _filteredProducts {
@@ -204,7 +233,7 @@ class _ModernMenuWidgetState extends State<ModernMenuWidget> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '🪑 TABLE ${widget.tableNumber}',
+                  '🪑 TABLE $_displayTableNumber',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -463,9 +492,17 @@ class _ModernMenuWidgetState extends State<ModernMenuWidget> {
   }
 
   Widget _buildProductCard(Product product) {
-    return GestureDetector(
-      onTap: () => showProductDetail(context, product),
-      child: Container(
+    return Consumer<CartProvider>(
+      builder: (context, cart, _) {
+        final currentQty = cart.getQuantity(product.id);
+        
+        return GestureDetector(
+          onTap: () => showProductDetail(
+            context, 
+            product, 
+            initialQuantity: currentQty > 0 ? currentQty : 1,
+          ),
+          child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -724,6 +761,8 @@ class _ModernMenuWidgetState extends State<ModernMenuWidget> {
           ],
         ),
       ),
+    );
+      },
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../config/api_config.dart';
 import '../services/restaurant_service.dart';
 import '../services/order_persistence_service.dart';
+import '../services/table_service.dart';
 import 'menu_screen.dart';
 import 'session_recovery_screen.dart';
 
@@ -41,6 +42,8 @@ class _SplashScreenState extends State<SplashScreen>
   Map<String, dynamic>? _restaurant;
   bool _hasError   = false;
   bool _navigating = false;
+  String _displayTableNumber = '';
+  final TableService _tableService = TableService();
 
   // ─── Controllers ───────────────────────────────────────────────────────────
   late AnimationController _fadeCtrl;
@@ -68,8 +71,10 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    _displayTableNumber = widget.tableId;
     _setupAnimations();
     _loadRestaurant();
+    _loadTableInfo();
   }
 
   void _setupAnimations() {
@@ -190,6 +195,25 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     return false;
+  }
+
+  /// Charge les informations de la table depuis l'API
+  Future<void> _loadTableInfo() async {
+    final tableInfo = await _tableService.getTableInfo(widget.tableId);
+    if (mounted && tableInfo != null) {
+      setState(() {
+        _displayTableNumber = _tableService.getTableNumber(tableInfo, widget.tableId);
+      });
+    } else if (mounted) {
+      // Fallback si l'API échoue
+      setState(() {
+        if (widget.tableId.length > 8 && widget.tableId.contains('-')) {
+          _displayTableNumber = widget.tableId.substring(0, 8).toUpperCase();
+        } else {
+          _displayTableNumber = widget.tableId;
+        }
+      });
+    }
   }
 
   void _navigateToMenu() {
@@ -657,17 +681,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   // ─── Badge table ───────────────────────────────────────────────────────────
   Widget _buildTableBadge() {
-    String tableDisplay = 'TABLE';
-    final tableId = widget.tableId;
-    final numberMatch = RegExp(r'\d+').firstMatch(tableId);
-    if (numberMatch != null) {
-      tableDisplay = 'TABLE  ${numberMatch.group(0)}';
-    } else if (tableId.length >= 4) {
-      tableDisplay = 'TABLE  ${tableId.substring(0, 4).toUpperCase()}';
-    } else {
-      tableDisplay = 'TABLE  ${tableId.toUpperCase()}';
-    }
-
     return FadeTransition(
       opacity: _footerOpacity,
       child: Container(
@@ -690,7 +703,7 @@ class _SplashScreenState extends State<SplashScreen>
             Icon(Icons.table_restaurant_rounded, color: _gold, size: 14),
             const SizedBox(width: 10),
             Text(
-              tableDisplay,
+              'TABLE  $_displayTableNumber',
               style: GoogleFonts.cormorantGaramond(
                 fontSize: 13,
                 color: _textDark,
