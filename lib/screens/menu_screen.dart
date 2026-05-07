@@ -86,8 +86,8 @@ class _MenuScreenState extends State<MenuScreen> {
       setState(() => _isLoading = true);
       
       final menuService = MenuService();
-      // Vider le cache pour forcer un rechargement depuis l'API
-      menuService.clearCache();
+      // Vider uniquement le cache du menu (pas les infos du restaurant)
+      menuService.clearMenuCache();
       
       _restaurantInfo = await menuService.getRestaurantInfo(widget.restaurantId);
       _allProducts = await menuService.getMenu(widget.restaurantId);

@@ -84,6 +84,12 @@ Map<String, String> _extractUrlParameters() {
             debugPrint('✅ Paramètres trouvés!');
             debugPrint('   - restaurantId: ${params['restaurantId']}');
             debugPrint('   - tableId: ${params['tableId']}');
+            
+            // Sauvegarder dans localStorage pour persistance
+            html.window.localStorage['qr_restaurantId'] = params['restaurantId']!;
+            html.window.localStorage['qr_tableId'] = params['tableId']!;
+            debugPrint('💾 Paramètres sauvegardés dans localStorage');
+            
             return {
               'restaurantId': params['restaurantId']!,
               'tableId': params['tableId']!,
@@ -105,12 +111,35 @@ Map<String, String> _extractUrlParameters() {
       if (uri.queryParameters.containsKey('restaurantId') && 
           uri.queryParameters.containsKey('tableId')) {
         debugPrint('✅ Paramètres trouvés dans query parameters!');
+        
+        // Sauvegarder dans localStorage
+        html.window.localStorage['qr_restaurantId'] = uri.queryParameters['restaurantId']!;
+        html.window.localStorage['qr_tableId'] = uri.queryParameters['tableId']!;
+        debugPrint('💾 Paramètres sauvegardés dans localStorage');
+        
         return {
           'restaurantId': uri.queryParameters['restaurantId']!,
           'tableId': uri.queryParameters['tableId']!,
         };
       } else {
         debugPrint('❌ Paramètres non trouvés dans query parameters');
+      }
+      
+      // Dernier fallback: vérifier localStorage
+      debugPrint('🔍 Tentative de récupération depuis localStorage...');
+      final savedRestaurantId = html.window.localStorage['qr_restaurantId'];
+      final savedTableId = html.window.localStorage['qr_tableId'];
+      
+      if (savedRestaurantId != null && savedTableId != null) {
+        debugPrint('✅ Paramètres récupérés depuis localStorage!');
+        debugPrint('   - restaurantId: $savedRestaurantId');
+        debugPrint('   - tableId: $savedTableId');
+        return {
+          'restaurantId': savedRestaurantId,
+          'tableId': savedTableId,
+        };
+      } else {
+        debugPrint('❌ Aucun paramètre dans localStorage');
       }
     } catch (e) {
       debugPrint('❌ Erreur lors de l\'extraction des paramètres URL: $e');

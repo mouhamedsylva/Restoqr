@@ -69,6 +69,15 @@ class MenuService {
     _cachedBadges = [];
   }
 
+  /// Vide uniquement le cache du menu (produits, catégories, badges)
+  /// sans toucher aux informations du restaurant
+  void clearMenuCache() {
+    _cachedProducts = [];
+    _cachedCategories = [];
+    _cachedBadges = [];
+    // On garde _cachedRestaurantInfo pour éviter les rechargements infinis
+  }
+
   Future<void> _fetchData(String restaurantId) async {
     final response = await http.get(Uri.parse('${ApiConfig.baseUrl}/restaurants/$restaurantId'));
     if (response.statusCode == 200) {
